@@ -15,6 +15,7 @@ out/
 
 # Vercel
 .vercel
+.editorial-state/
 
 # Debug
 npm-debug.log*

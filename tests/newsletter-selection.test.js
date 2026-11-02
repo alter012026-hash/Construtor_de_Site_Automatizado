@@ -16,7 +16,7 @@ test("não reenvia posts antigos quando o state ficou parado (bug de out/2026)",
 test("pula títulos inválidos em vez de derrubar o envio inteiro", () => {
   const posts = [
     post("bom", 3),
-    post("ruim", 4, "Informações sobre medicamentos"),
+    post("ruim", 4, "Guia completo"),
     post("avisado", 100),
   ];
   const r = selectPostsToNotify({ posts, lastNotifiedSlug: "avisado", now: NOW });
@@ -25,7 +25,7 @@ test("pula títulos inválidos em vez de derrubar o envio inteiro", () => {
 });
 
 test("só posts inválidos: nada a enviar, mas o state avança", () => {
-  const posts = [post("ruim", 3, "Informações sobre medicamentos"), post("avisado", 100)];
+  const posts = [post("ruim", 3, "Guia completo"), post("avisado", 100)];
   const r = selectPostsToNotify({ posts, lastNotifiedSlug: "avisado", now: NOW });
   assert.equal(r.toSend.length, 0);
   assert.equal(r.latestSlug, "ruim");

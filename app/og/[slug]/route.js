@@ -149,7 +149,7 @@ export async function GET(request) {
           }}
         >
           <span style={{ color: "#667085", fontSize: "16px" }}>
-            {config.url?.replace("https://", "") ?? "descomplicabula.com.br"}
+            {config.url?.replace(/^https?:\/\//, "") ?? "example.com"}
           </span>
           {readingTime && (
             <span style={{ color: accent, fontSize: "16px", fontWeight: "600" }}>

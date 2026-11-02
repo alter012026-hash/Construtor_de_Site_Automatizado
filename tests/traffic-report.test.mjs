@@ -10,7 +10,7 @@ import { buildCsv, buildXlsx, csvCell, safeSheetName } from "../lib/xlsx-lite.js
 const DAYS = Array.from({ length: 30 }, (_, i) => `2026-10-${String(i - 0 + 1).padStart(2, "0")}`.replace("2026-10-31", "2026-10-30"));
 const SLUGS = Array.from({ length: 40 }, (_, i) => `artigo-${i + 1}`);
 const POSTS = [
-  ...SLUGS.map((slug, i) => ({ slug, title: `Artigo ${i + 1}`, category: i % 2 ? "Entenda a bula" : "Uso seguro", date: "2026-08-01T00:00:00.000Z", wordCount: 1500 + i, noindex: false, targetKeyword: "" })),
+  ...SLUGS.map((slug, i) => ({ slug, title: `Artigo ${i + 1}`, category: i % 2 ? "Guias" : "Novidades", date: "2026-08-01T00:00:00.000Z", wordCount: 1500 + i, noindex: false, targetKeyword: "" })),
   { slug: "artigo-sem-visita", title: "Nunca lido", category: "Uso seguro", date: "2026-07-01T00:00:00.000Z", wordCount: 900, noindex: false, targetKeyword: "" },
   { slug: "artigo-novo", title: "Publicado ontem", category: "Uso seguro", date: "2026-10-29T00:00:00.000Z", wordCount: 900, noindex: false, targetKeyword: "" },
 ];

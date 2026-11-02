@@ -2,21 +2,21 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import config from "../site.config";
 
-export default function AdSenseScript({ enabled }) {
+export default function AdSenseScript({ enabled, publisherId = "" }) {
   const pathname = usePathname();
 
   useEffect(() => {
     const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
     const scriptId = "google-adsense-script";
     const existingScript = document.getElementById(scriptId);
+    const activePublisherId = publisherId.trim();
 
     if (
       isAdminRoute ||
       !enabled ||
-      !config.adsense.enabled ||
-      config.adsense.publisherId === "ca-pub-XXXXXXXXXXXXXXXX"
+      !activePublisherId ||
+      activePublisherId === "ca-pub-XXXXXXXXXXXXXXXX"
     ) {
       existingScript?.remove();
       return;
@@ -28,13 +28,13 @@ export default function AdSenseScript({ enabled }) {
     script.id = scriptId;
     script.async = true;
     script.crossOrigin = "anonymous";
-    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.adsense.publisherId}`;
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${activePublisherId}`;
     document.head.appendChild(script);
 
     return () => {
       script.remove();
     };
-  }, [pathname]);
+  }, [pathname, enabled, publisherId]);
 
   return null;
 }

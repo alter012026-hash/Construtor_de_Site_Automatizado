@@ -8,25 +8,16 @@ const path = require("path");
 const crypto = require("crypto");
 const qe = require("../lib/quality-engine.js");
 const { getLocalEditorialStatePath } = require("../lib/editorial-state.js");
-const siteConfigRaw = require("../site.config.js");
-const siteConfig = siteConfigRaw?.default || siteConfigRaw || {};
-
-const postsDir = path.resolve(__dirname, "..", siteConfig.contentDirectory || "posts");
-const reportPath = getLocalEditorialStatePath(
-  "topic-overlap.json",
-  siteConfig.contentDirectory || "posts",
-  path.resolve(__dirname, "..")
-);
+let postsDir;
+let reportPath;
 const STOPWORDS = new Set([
-  "para", "como", "mais", "sobre", "medicamento", "medicamentos", "remedio",
-  "remedios", "bula", "bulas", "saude", "guia", "atualizado", "dicas",
+  "para", "como", "mais", "sobre", "guia", "atualizado", "dicas",
   "praticas", "pratica", "oficial", "oficiais", "seguro", "segura",
   "passo", "a", "ao", "aos", "de", "da", "do", "das", "dos", "e",
   "em", "com", "sem", "por", "que", "um", "uma", "no", "na",
 ]);
 const GENERIC_ENTITIES = new Set([
-  "Brasil", "Medicamento", "Medicamentos", "Bula", "Bulas", "Governo",
-  "Federal", "Nacional", "Saúde", "Guia", "Oficial", "Oficiais",
+  "Brasil", "Governo", "Federal", "Nacional", "Guia", "Oficial", "Oficiais",
 ]);
 
 function normalize(text = "") {
@@ -145,6 +136,19 @@ function loadEntries() {
 }
 
 function main() {
+  const siteArg = process.argv.includes("--site")
+    ? process.argv[process.argv.indexOf("--site") + 1]
+    : null;
+  if (!siteArg) throw new Error("Informe o site do hub com --site <slug>.");
+  const { getRegisteredSite } = require("../lib/site-registry.js");
+  const site = getRegisteredSite(siteArg);
+  if (!site) throw new Error(`O site "${siteArg}" não existe no cadastro do hub.`);
+  postsDir = path.resolve(__dirname, "..", site.profile.contentDirectory);
+  reportPath = getLocalEditorialStatePath(
+    "topic-overlap.json",
+    site.profile.contentDirectory,
+    path.resolve(__dirname, "..")
+  );
   if (!fs.existsSync(postsDir)) {
     console.log("Nenhum conteúdo publicado neste site ainda.");
     return;

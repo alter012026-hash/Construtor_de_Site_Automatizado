@@ -47,7 +47,7 @@ export async function POST(request) {
       );
     }
     const from =
-      process.env.RESEND_FROM_EMAIL?.trim() || "Descomplica Bula <onboarding@resend.dev>";
+      process.env.RESEND_FROM_EMAIL?.trim() || "Hub de Sites <onboarding@resend.dev>";
 
     const latestPost = posts[0];
     const html = buildDailyEmailHtml({

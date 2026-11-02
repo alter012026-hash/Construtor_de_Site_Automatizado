@@ -1,60 +1,52 @@
 {
   "schemaVersion": 1,
-  "name": "Descomplica Bula",
-  "tagline": "Informação sobre medicamentos em linguagem simples",
-  "description": "Entenda bulas, usos, cuidados e alertas sobre medicamentos com informação clara, fontes oficiais e responsabilidade.",
-  "url": "https://descomplicabula.com.br",
-  "contentDirectory": "posts",
+  "name": "Novo site",
+  "tagline": "Conteúdo útil para seu público",
+  "description": "Apresente o propósito do site, o público que atende e o valor dos conteúdos.",
+  "url": "https://example.com",
+  "customDomain": "",
+  "logoUrl": "",
+  "contentDirectory": "posts/novo-site",
   "locale": "pt_BR",
   "language": "pt-BR",
-  "niche": "medicamentos e saúde",
+  "niche": "Defina seu nicho",
   "brand": {
-    "primaryColor": "#B4232C",
-    "accentColor": "#B54708"
+    "primaryColor": "#164E63",
+    "accentColor": "#D97706"
   },
-  "keywords": [
-    "bula de medicamento",
-    "informação sobre medicamentos",
-    "uso seguro de medicamentos",
-    "efeitos colaterais",
-    "interações medicamentosas",
-    "Anvisa"
-  ],
-  "contactEmail": "contato@descomplicabula.com.br",
+  "keywords": [],
+  "contactEmail": "",
   "author": {
-    "name": "Redação Descomplica Bula",
-    "bio": "Equipe editorial que produz conteúdo informativo com fontes oficiais e revisão humana. O site não substitui orientação de profissionais de saúde.",
+    "name": "Redação",
+    "bio": "Equipe responsável pela pesquisa, produção e revisão dos conteúdos.",
     "avatar": null
   },
   "methodology": {
-    "summary": "Conteúdo informativo produzido com apoio de inteligência artificial, checagem humana obrigatória e consulta a fontes oficiais. Não substitui a bula, o farmacêutico ou o profissional de saúde que acompanha você."
+    "summary": "Conteúdo informativo, produzido com responsabilidade e revisado antes da publicação."
   },
   "editorial": {
-    "audience": "Público geral, sem pressupor conhecimento de saúde",
-    "tone": "Claro, acolhedor, preciso e cauteloso, sem alarmismo",
+    "audience": "Público interessado no tema",
+    "tone": "Claro, útil, confiável e direto",
     "contentRules": [
-      "Use linguagem simples e explique termos técnicos.",
-      "Não invente fatos, dados ou fontes.",
-      "Diferencie informação geral de orientação individual.",
-      "Submeta todo conteúdo a revisão humana antes da publicação."
+      "Não invente fatos, dados, estatísticas ou fontes.",
+      "Explique termos técnicos e escreva para o público definido.",
+      "Todo conteúdo deve passar por revisão humana antes da publicação."
     ],
-    "requireSources": true
+    "requireSources": false
   },
   "modules": {
-    "health": true,
-    "medicationSummary": true,
-    "officialSources": true,
-    "newsletter": true,
-    "affiliates": true
+    "officialSources": false,
+    "newsletter": false,
+    "affiliates": false
   },
   "homepage": {
-    "heroTitle": "Entenda medicamentos sem complicar a sua saúde.",
-    "heroDescription": "Explicamos bulas, cuidados e alertas em linguagem simples, com fontes oficiais. Conteúdo informativo que não substitui orientação profissional.",
+    "heroTitle": "Conteúdo útil para o seu dia a dia.",
+    "heroDescription": "Apresente aqui o que os leitores encontrarão neste site.",
     "primaryActionLabel": "Explorar conteúdos",
     "primaryActionHref": "/blog",
-    "secondaryActionLabel": "Consultar fontes oficiais",
-    "secondaryActionHref": "/fontes-oficiais",
-    "notice": "Não use, interrompa ou altere um medicamento por conta própria. Confira a bula oficial e converse com um profissional de saúde."
+    "secondaryActionLabel": "",
+    "secondaryActionHref": "/sobre",
+    "notice": ""
   },
   "affiliates": [],
   "adsense": {
@@ -69,124 +61,29 @@
   },
   "generation": {
     "articlesPerRun": 1,
-    "tone": "claro, acolhedor, preciso e cauteloso, sem alarmismo",
-    "audienceLevel": "público geral, sem pressupor conhecimento de saúde",
+    "aiProvider": "auto",
+    "aiModel": "",
+    "tone": "Claro, útil, confiável e direto",
+    "audienceLevel": "Público interessado no tema",
     "minWords": 900,
     "topicSeeds": [],
     "categories": [
-      "Entenda a bula",
-      "Uso seguro",
-      "Efeitos e reações",
-      "Interações",
-      "Grupos especiais",
-      "Formas e apresentações",
-      "Genéricos e similares",
-      "Armazenamento e descarte",
-      "Alertas da Anvisa",
-      "Saúde e prevenção"
+      "Guias",
+      "Dúvidas frequentes",
+      "Novidades"
     ]
   },
-  "officialSourceDomains": [
-    "gov.br",
-    "anvisa.gov.br",
-    "bvsms.saude.gov.br",
-    "fiocruz.br",
-    "cff.org.br",
-    "who.int",
-    "medlineplus.gov",
-    "nhs.uk"
-  ],
-  "emergency": {
-    "samu": "192",
-    "poisonCenter": "0800 722 6001",
-    "cvv": "188"
-  },
+  "officialSourceDomains": [],
   "seo": {
     "twitterHandle": null,
-    "ogImage": "/og-default.jpg",
-    "googleSiteVerification": ""
+    "ogImage": "/og-default.svg",
+    "googleSiteVerification": "",
+    "googleAnalyticsId": ""
   },
-  "navigation": [
-    {
-      "label": "Medicamentos",
-      "href": "/blog?categoria=Entenda%20a%20bula"
-    },
-    {
-      "label": "Uso seguro",
-      "href": "/blog?categoria=Uso%20seguro"
-    },
-    {
-      "label": "Efeitos e reações",
-      "href": "/blog?categoria=Efeitos%20e%20reações"
-    },
-    {
-      "label": "Interações",
-      "href": "/blog?categoria=Interações"
-    },
-    {
-      "label": "Fontes oficiais",
-      "href": "/fontes-oficiais"
-    }
-  ],
-  "footerNavigation": [
-    {
-      "label": "Sobre",
-      "href": "/sobre"
-    },
-    {
-      "label": "Metodologia",
-      "href": "/metodologia"
-    },
-    {
-      "label": "Fontes oficiais",
-      "href": "/fontes-oficiais"
-    },
-    {
-      "label": "Aviso de saúde",
-      "href": "/aviso-de-saude"
-    },
-    {
-      "label": "Privacidade",
-      "href": "/privacidade"
-    },
-    {
-      "label": "Contato",
-      "href": "/contato"
-    }
-  ],
+  "navigation": [],
+  "footerNavigation": [],
   "quickStart": {
-    "title": "O que você quer entender?",
-    "items": [
-      {
-        "label": "Como ler uma bula",
-        "hint": "Entenda as informações principais",
-        "href": "/blog?categoria=Entenda%20a%20bula"
-      },
-      {
-        "label": "Uso seguro de medicamentos",
-        "hint": "Cuidados gerais e orientação",
-        "href": "/blog?categoria=Uso%20seguro"
-      },
-      {
-        "label": "Efeitos e reações",
-        "hint": "Saiba quando buscar orientação",
-        "href": "/blog?categoria=Efeitos%20e%20reações"
-      },
-      {
-        "label": "Interações",
-        "hint": "Medicamentos, alimentos e suplementos",
-        "href": "/blog?categoria=Interações"
-      },
-      {
-        "label": "Genéricos e similares",
-        "hint": "Entenda as diferenças",
-        "href": "/blog?categoria=Genéricos%20e%20similares"
-      },
-      {
-        "label": "Alertas da Anvisa",
-        "hint": "Comunicados e recolhimentos",
-        "href": "/blog?categoria=Alertas%20da%20Anvisa"
-      }
-    ]
+    "title": "",
+    "items": []
   }
 }

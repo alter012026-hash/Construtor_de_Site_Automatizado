@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import ManagedSiteShell from "../../../components/ManagedSiteShell";
 import AdSenseScript from "../../../components/AdSenseScript";
-import { getRegisteredSite, getRegisteredSites } from "../../../lib/site-registry";
+import GoogleAnalytics from "../../../components/GoogleAnalytics";
+import { getRegisteredSite, getRegisteredSites, getSitePublicUrl } from "../../../lib/site-registry";
 
 const isVercelProduction = process.env.VERCEL === "1" && process.env.VERCEL_ENV === "production";
 
@@ -14,7 +15,7 @@ export async function generateMetadata({ params }) {
   const site = getRegisteredSite(siteSlug, { includeInactive: false });
   if (!site) return {};
 
-  const basePath = `/sites/${site.slug}`;
+  const siteUrl = getSitePublicUrl(site);
   return {
     title: { default: site.profile.name, template: `%s | ${site.profile.name}` },
     description: site.profile.description,
@@ -23,11 +24,12 @@ export async function generateMetadata({ params }) {
     ...(site.profile.seo?.googleSiteVerification
       ? { verification: { google: site.profile.seo.googleSiteVerification } }
       : {}),
-    alternates: { canonical: basePath },
+    metadataBase: new URL(siteUrl),
+    alternates: { canonical: siteUrl },
     openGraph: {
       type: "website",
       locale: site.profile.locale || "pt_BR",
-      url: basePath,
+      url: siteUrl,
       siteName: site.profile.name,
       description: site.profile.description,
       ...(site.profile.seo?.ogImage
@@ -46,7 +48,9 @@ export default async function ManagedSiteLayout({ children, params }) {
     <>
       <AdSenseScript
         enabled={isVercelProduction && site.profile.adsense?.enabled === true}
+        publisherId={site.profile.adsense?.publisherId || ""}
       />
+      <GoogleAnalytics measurementId={site.profile.seo?.googleAnalyticsId || ""} />
       <ManagedSiteShell site={site}>{children}</ManagedSiteShell>
     </>
   );

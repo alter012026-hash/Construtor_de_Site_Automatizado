@@ -1,11 +1,11 @@
 /* ================================================================
-   DESCOMPLICA BULA — Design system
+   HUB DE SITES — Design system
    ----------------------------------------------------------------
-   Conceito: informação acessível, confiança e cuidado. Vermelho institucional
-   para a marca, com branco e neutros como base.
+   Conceito: criação confiável, clara e flexível, com tons de azul-petróleo
+   e âmbar para acomodar projetos de diferentes nichos.
 
    Paleta
-     Vermelho      #B4232C   ação e identidade
+     Azul-petróleo #164E63   ação e identidade
      Grafite       #17212B   texto principal
      Branco        #FFFFFF   superfície principal
      Cinza-claro   #F8FAFC   fundo secundário
@@ -21,10 +21,10 @@
 
 :root {
   /* ---- design tokens oficiais ---- */
-  --color-primary:       #B4232C;
-  --color-primary-dark:  #8F1821;
-  --color-primary-light: #FCE8EA;
-  --color-chip-text:     #8F1821;
+  --color-primary:       #164E63;
+  --color-primary-dark:  #0F3B4D;
+  --color-primary-light: #E8F1F4;
+  --color-chip-text:     #164E63;
   --color-background:    #FFFFFF;
   --color-surface:       #F8FAFC;
   --color-surface-alt:   #F1F4F6;
@@ -35,13 +35,13 @@
   --color-warning:       #B54708;
   --color-danger:        #B42318;
   --color-info:          #2563EB;
-  --color-focus:         rgba(180, 35, 44, 0.35);
+  --color-focus:         rgba(22, 78, 99, 0.35);
 
   /* ---- compatibilidade com os tokens usados pelos componentes ---- */
   --ink:            var(--color-text);
   --on-ink:         var(--color-background);
   --primary:        var(--color-primary);
-  --primary-light:  #D92D3A;
+  --primary-light:  #2B7188;
   --primary-dark:   var(--color-primary-dark);
   --on-primary:     #FFFFFF;
   --link:           var(--color-primary);
@@ -72,7 +72,7 @@
   --header-bg:      rgba(255, 255, 255, 0.92);
   --hero-bg:        #F8FAFC;
   --hero-fg:        #17212B;
-  --hero-ring:      #B4232C;
+  --hero-ring:      #164E63;
   --footer-bg:      #17212B;
 
   /* ---- sombras (usadas com parcimônia: a estrutura vem de bordas) ---- */
@@ -114,7 +114,7 @@
 
 [data-theme="dark"] {
   --color-primary:       #D92D3A;
-  --color-primary-dark:  #B4232C;
+  --color-primary-dark:  #0F3B4D;
   --color-primary-light: #4A2026;
   --color-chip-text:     #FF929A;
   --color-background:    #101418;

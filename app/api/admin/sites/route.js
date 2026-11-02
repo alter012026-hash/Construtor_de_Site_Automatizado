@@ -16,14 +16,6 @@ function readLocalRegistry() {
   return JSON.parse(fs.readFileSync(LOCAL_REGISTRY_PATH, "utf8"));
 }
 
-function profileForSite(site) {
-  if (site.profile) return site.profile;
-  if (site.slug === "descomplica-bula") {
-    return JSON.parse(fs.readFileSync(path.join(process.cwd(), "data/site-profile.json"), "utf8"));
-  }
-  return null;
-}
-
 function validateRegistry(registry) {
   const validationError = validateSiteRegistry(registry?.sites);
   if (validationError) return validationError;
@@ -34,7 +26,7 @@ function validateRegistry(registry) {
   for (const site of registry.sites) {
     const profileError = validateSiteProfile(site.profile);
     if (profileError) return `Site "${site.slug}": ${profileError}`;
-    if (site.slug !== "descomplica-bula" && site.profile.contentDirectory !== `posts/${site.slug}`) {
+    if (site.profile.contentDirectory !== `posts/${site.slug}`) {
       return `A pasta de conteúdo do site "${site.slug}" deve ser posts/${site.slug}.`;
     }
   }
@@ -52,7 +44,7 @@ export async function GET() {
       if (remote) {
         const registry = JSON.parse(remote.content);
         return NextResponse.json({
-          sites: registry.sites.map((site) => ({ ...site, profile: profileForSite(site) })),
+          sites: registry.sites.filter((site) => site.profile),
           revision: remote.sha,
         });
       }
@@ -60,7 +52,7 @@ export async function GET() {
 
     const registry = readLocalRegistry();
     return NextResponse.json({
-      sites: registry.sites.map((site) => ({ ...site, profile: profileForSite(site) })),
+      sites: registry.sites.filter((site) => site.profile),
       revision: null,
     });
   } catch (error) {
@@ -82,23 +74,38 @@ export async function POST(request) {
       return NextResponse.json({ error: "Ação de administração inválida." }, { status: 400 });
     }
 
-    const registry = readLocalRegistry();
+    let registry;
+    let currentRevision = revision || undefined;
+    if (process.env.VERCEL === "1" && process.env.GITHUB_TOKEN && process.env.GITHUB_REPO) {
+      const remote = await getFile(REGISTRY_PATH);
+      if (remote) {
+        if (revision && remote.sha !== revision) {
+          return NextResponse.json(
+            { error: "O cadastro mudou desde que você abriu o painel. Atualize a página antes de salvar novamente." },
+            { status: 409 }
+          );
+        }
+        registry = JSON.parse(remote.content);
+        currentRevision = remote.sha;
+      } else {
+        registry = readLocalRegistry();
+      }
+    } else {
+      registry = readLocalRegistry();
+    }
+
     const existingIndex = registry.sites.findIndex((site) => site.slug === slug);
     if (action === "save") {
       if (!submittedProfile || typeof submittedProfile !== "object" || Array.isArray(submittedProfile)) {
         return NextResponse.json({ error: "Envie o perfil completo do site." }, { status: 400 });
       }
-      if (existingIndex < 0 && slug === "descomplica-bula") {
-        return NextResponse.json({ error: "O identificador do site inicial está reservado." }, { status: 409 });
-      }
-
       const baseProfile = existingIndex >= 0
-        ? profileForSite(registry.sites[existingIndex]) || createGenericSiteProfile({ slug })
+        ? registry.sites[existingIndex].profile || createGenericSiteProfile({ slug })
         : createGenericSiteProfile({ slug });
       const profile = mergeProfile(baseProfile, submittedProfile);
       const profileError = validateSiteProfile(profile);
       if (profileError) return NextResponse.json({ error: profileError }, { status: 400 });
-      if (slug !== "descomplica-bula" && profile.contentDirectory !== `posts/${slug}`) {
+      if (profile.contentDirectory !== `posts/${slug}`) {
         return NextResponse.json({ error: `A pasta de conteúdo deve ser posts/${slug}.` }, { status: 400 });
       }
 
@@ -130,7 +137,7 @@ export async function POST(request) {
         REGISTRY_PATH,
         content,
         `hub: ${action === "set-active" ? (active ? "exibir" : "ocultar") : "salvar"} site ${slug}`,
-        revision || undefined
+        currentRevision
       );
       const deployment = await triggerVercelDeploy();
       return NextResponse.json({

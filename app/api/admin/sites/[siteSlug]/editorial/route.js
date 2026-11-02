@@ -219,7 +219,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: `O conteúdo não passou nas validações: ${safetyIssues.join("; ")}.` }, { status: 409 });
     }
 
-    const sourcesRequired = site.profile.modules?.health === true || site.profile.editorial?.requireSources === true;
+    const sourcesRequired = site.profile.editorial?.requireSources === true;
     if (sourcesRequired) {
       const sources = normalizeOfficialSources(draft.sourceUrls, site.profile.officialSourceDomains);
       if (!sources.length) {

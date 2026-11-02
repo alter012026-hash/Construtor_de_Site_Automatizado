@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * generate-article.js
- * Gera artigos com frontmatter completo + fallback:
- *   Groq (gpt-oss-120b → llama-3.3-70b-versatile) → OpenRouter → Gemini
+ * Gera artigos para um site registrado no hub.
  *
  * A lógica de geração (prompt, providers, validação de qualidade) vive em
  * lib/article-generator.js e é compartilhada com app/api/admin/quality/route.js
@@ -10,9 +9,9 @@
  * roda dentro de uma function serverless da Vercel).
  *
  * Este script é o "modo CLI": roda em VPS/local/GitHub Actions e grava
- * artigos na fila editorial; a publicação em posts/ exige aprovação no admin.
+ * artigos na fila editorial isolada do site; a publicação exige aprovação no admin.
  *
- *  - Título sempre em Title Case (siglas tipo ANVISA preservadas)
+ *  - Título sempre em Title Case
  *  - Excerpt nunca corta no meio da palavra/frase
  *  - Não repete tópicos recentes nem gera conteúdo quase-idêntico a posts existentes
  *  - Valida qualidade (tamanho, frases genéricas, similaridade) e tenta de novo se reprovar
@@ -28,7 +27,6 @@ const path = require("path");
 const yaml = require("js-yaml");
 const qe = require("../lib/quality-engine.js");
 const ag = require("../lib/article-generator.js");
-const { clusterNews, deriveClusterTopic } = require("../lib/news-clustering.js");
 const { getLocalEditorialStatePath } = require("../lib/editorial-state.js");
 
 // ─────────────────────────────────────────────
@@ -38,28 +36,14 @@ const initialArgs = process.argv.slice(2);
 const siteArg = initialArgs.includes("--site")
   ? initialArgs[initialArgs.indexOf("--site") + 1]
   : null;
-let siteConfigRaw = require("../site.config.js");
-if (siteArg) {
-  const { getRegisteredSite } = require("../lib/site-registry.js");
-  const site = getRegisteredSite(siteArg);
-  if (!site) throw new Error(`O site "${siteArg}" não existe no cadastro do hub.`);
-  siteConfigRaw = site.profile;
-}
-const siteConfig = siteConfigRaw?.default || siteConfigRaw || {};
+if (!siteArg) throw new Error("Informe o site do hub com --site <slug>.");
+const { getRegisteredSite } = require("../lib/site-registry.js");
+const site = getRegisteredSite(siteArg);
+if (!site) throw new Error(`O site "${siteArg}" não existe no cadastro do hub.`);
+const siteConfig = site.profile;
 const generation = siteConfig?.generation || {};
 
-const CATEGORIES = generation.categories || [
-  "Entenda a bula",
-  "Uso seguro",
-  "Efeitos e reações",
-  "Interações",
-  "Grupos especiais",
-  "Formas e apresentações",
-  "Genéricos e similares",
-  "Armazenamento e descarte",
-  "Alertas da Anvisa",
-  "Saúde e prevenção",
-];
+const CATEGORIES = generation.categories || [];
 
 // ─── CLI ──────────────────────────────────────────────────────────────
 const args = initialArgs;
@@ -83,18 +67,16 @@ const forceFileArg = args.includes("--force-file")
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ─── Paths ────────────────────────────────────────────────────────────
-const postsDir = path.resolve(__dirname, "..", siteConfig.contentDirectory || "posts");
+const postsDir = path.resolve(__dirname, "..", siteConfig.contentDirectory);
 const getStatePath = (fileName) => getLocalEditorialStatePath(
   fileName,
-  siteConfig.contentDirectory || "posts",
+  siteConfig.contentDirectory,
   path.resolve(__dirname, "..")
 );
 const editorialDraftsPath = getStatePath("editorial-drafts.json");
 const usedTopicsLogPath = getStatePath("used-topics.json");
 const signaturesLogPath = getStatePath("content-signatures.json");
 const qualityLogPath = getStatePath("quality-log.json");
-const pendingNewsPath = getStatePath("pending-news-topics.json");
-const usedNewsLinksPath = getStatePath("used-news-links.json");
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 function loadJson(filePath, fallback) {
@@ -173,153 +155,40 @@ function saveEditorialDraft(article, result, topic) {
 }
 
 // ─── Tópicos ──────────────────────────────────────────────────────────
-// Pool grande de propósito: com poucos seeds por categoria, o pipeline
-// esgota o pool rapidamente e cai no fallback de "variação" (que só anexa
-// um sufixo genérico tipo "guia atualizado" a um tópico já publicado —
-// isso gera títulos quase idênticos e foi a causa dos posts duplicados
-// detectados em 2026-06). Cada categoria deve ter MUITO mais seeds do que
-// o número de posts que você pretende publicar nela.
-const SEEDS = siteConfig.modules?.health === true
-  ? require("../lib/health-topics.js")
-  : Object.fromEntries(CATEGORIES.map((category) => [
-      category,
-      generation.topicSeeds?.find((entry) => entry.category === category)?.topics || [],
-    ]));
-
-// Tenta gerar o tópico do dia a partir de uma notícia real, coletada por
-// scripts/scrape-alertas-anvisa.js (fila em .pending-news-topics.json).
-// Só cai pro pool estático de SEEDS se a fila estiver vazia — é isso que dá
-// autenticidade: o artigo nasce de um comunicado oficial recente,
-// em vez de um tema evergreen genérico.
-function pickNewsTopic() {
-  const pending = loadJson(pendingNewsPath, []);
-  if (!pending.length) return null;
-
-  const usedLinks = new Set(loadJson(usedNewsLinksPath, []));
-  const available = pending.filter((item) => !usedLinks.has(item.link));
-  if (!available.length) return null;
-
-  // Em vez de consumir 1 notícia = 1 artigo, agrupa notícias sobre o mesmo
-  // assunto (mesmo órgão, ângulos diferentes) num único cluster —
-  // isso é o que permite gerar 1 artigo consolidado ("tudo que mudou nesta
-  // semana") em vez de vários artigos finos e quase-redundantes competindo
-  // entre si por SEO. Ver lib/news-clustering.js para o critério de agrupamento.
-  const clusters = clusterNews(available);
-  const best = clusters[0];
-  if (!best) return null;
-
-  const items = best.items;
-  const consolidated = items.length >= 2;
-  const topic = consolidated ? deriveClusterTopic(items) : items[0].title;
-
-  // Marca como consumidas imediatamente TODAS as notícias do cluster escolhido
-  // (remove da fila, registra os links como usados) — mesmo que a geração
-  // falhe depois, não reprocessamos as mesmas notícias toda hora.
-  const selectedLinks = new Set(items.map((i) => i.link));
-  const remaining = pending.filter((p) => !selectedLinks.has(p.link));
-  saveJson(pendingNewsPath, remaining);
-
-  const allUsedLinks = new Set([...usedLinks, ...selectedLinks]);
-  saveJson(usedNewsLinksPath, [...allUsedLinks].slice(-500)); // teto pra não crescer infinito
-
-  // A categoria é escolhida por palavras-chave simples no título consolidado
-  // (ou no título da notícia, se for um item isolado); cai num fallback
-  // aleatório se nada bater.
-  const titleLower = topic.toLowerCase();
-  let category = CATEGORIES.find((c) => titleLower.includes(c.toLowerCase()));
-  if (!category) {
-    if (/bula|rotulagem|registro/.test(titleLower)) category = "Entenda a bula";
-    else if (/interaç|combina|misturar/.test(titleLower)) category = "Interações";
-    else if (/efeito|reaç|alerg/.test(titleLower)) category = "Efeitos e reações";
-    else if (/gravidez|amament|criança|idoso/.test(titleLower)) category = "Grupos especiais";
-    else if (/anvisa|recolhimento|alerta/.test(titleLower)) category = "Alertas da Anvisa";
-    else category = "Alertas da Anvisa";
-  }
-
-  const newsFact = consolidated
-    ? { title: topic, consolidated: true, items }
-    : items[0];
-
-  return { topic, category, newsFact };
-}
+const SEEDS = Object.fromEntries(CATEGORIES.map((category) => [
+  category,
+  generation.topicSeeds?.find((entry) => entry.category === category)?.topics || [],
+]));
 
 function buildTopic() {
   if (topicArg) {
     if (categoryArg && !CATEGORIES.includes(categoryArg)) {
       throw new Error(`Categoria inválida: ${categoryArg}`);
     }
-    const inferredCategory = siteConfig.modules?.health === true
-      ? ag.inferCategory(topicArg, SEEDS, CATEGORIES)
-      : null;
-    if (categoryArg && inferredCategory && categoryArg !== inferredCategory) {
-      throw new Error(`O tema parece pertencer a "${inferredCategory}", não a "${categoryArg}".`);
-    }
-    const category = categoryArg || inferredCategory || (
-      siteConfig.modules?.health === true ? null : CATEGORIES[0]
-    );
-    if (!category || !CATEGORIES.includes(category)) {
-      throw new Error("Não foi possível definir uma categoria com segurança. Informe --category com uma categoria válida.");
-    }
+    const category = categoryArg || CATEGORIES[0];
+    if (!category) throw new Error("Configure ao menos uma categoria editorial no perfil do site.");
     return { topic: topicArg, category };
   }
   if (categoryArg && !CATEGORIES.includes(categoryArg)) {
     throw new Error(`Categoria inválida: ${categoryArg}`);
   }
-
-  const newsTopic = categoryArg || siteConfig.modules?.health !== true ? null : pickNewsTopic();
-  if (newsTopic) return newsTopic;
-
+  if (!CATEGORIES.length) throw new Error("Configure ao menos uma categoria editorial no perfil do site.");
+  const categories = categoryArg ? [categoryArg] : CATEGORIES;
   const usedTopics = loadJson(usedTopicsLogPath, []);
   const existingSlugs = getExistingSlugs();
-
-  // 1ª passada: tenta achar um tópico inédito, sorteando a categoria.
-  // 15 tentativas é suficiente quando ALGUMA categoria ainda tem seed livre.
-  const MAX_ATTEMPTS = 15;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const category = categoryArg || ag.randomItem(CATEGORIES);
-    const pool = SEEDS[category] || [];
-    if (pool.length === 0) continue;
-
-    const available = pool.filter((t) => !usedTopics.includes(t) && !existingSlugs.has(ag.slugify(t)));
-    if (available.length === 0) continue;
-
-    const topic = ag.randomItem(available);
-    return { topic, category };
-  }
-
-  // 2ª passada (defensiva): a 1ª pode falhar por mau sorteio mesmo com seeds
-  // livres em outra categoria. Varre TODAS as categorias de forma determinística
-  // antes de aceitar que o pool real esgotou.
-  for (const category of categoryArg ? [categoryArg] : CATEGORIES) {
-    const pool = SEEDS[category] || [];
-    const available = pool.filter((t) => !usedTopics.includes(t) && !existingSlugs.has(ag.slugify(t)));
-    if (available.length > 0) {
-      return { topic: ag.randomItem(available), category };
-    }
-  }
-
-  // Pool de seeds genuinamente esgotado em TODAS as categorias.
-  // Isso não deve gerar um clone disfarçado de tópico antigo (era o bug que
-  // produzia títulos como "...guia atualizado", "...dicas práticas" repetidos).
-  // Em vez disso, sinaliza claramente que o pool precisa de novos seeds —
-  // a pessoa responsável vê isso no console/log e adiciona temas novos em SEEDS.
-  console.warn(
-    "\n⚠️  POOL DE SEEDS ESGOTADO em todas as categorias — todos os tópicos cadastrados já foram usados.\n" +
-    "   Isso é esperado de tempos em tempos; a ação correta é adicionar novos tópicos\n" +
-    "   em scripts/generate-article.js (objeto SEEDS), não gerar variações automáticas\n" +
-    "   do mesmo tópico (isso foi removido por causar posts quase-duplicados).\n"
+  const available = categories.flatMap((category) =>
+    (SEEDS[category] || [])
+      .filter((topic) => !usedTopics.includes(topic) && !existingSlugs.has(ag.slugify(topic)))
+      .map((topic) => ({ topic, category }))
   );
-
-  const category = categoryArg || ag.randomItem(CATEGORIES);
-  const pool = SEEDS[category] || [`dicas sobre ${category}`];
-  const topic = ag.randomItem(pool);
-  // marcado explicitamente para aparecer no painel de qualidade como "pool esgotado",
-  // já que o tópico abaixo é necessariamente uma repetição de algo já publicado
-  return { topic, category, seedPoolExhausted: true };
+  if (!available.length) {
+    throw new Error("Não há pautas inéditas configuradas. Adicione tópicos ao perfil do site ou informe --topic.");
+  }
+  return ag.randomItem(available);
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────
-async function saveArticle(result, topic, category, forceFile, seedPoolExhausted = false) {
+async function saveArticle(result, topic, category, forceFile) {
   if (!fs.existsSync(postsDir)) fs.mkdirSync(postsDir, { recursive: true });
 
   let existingFrontmatter;
@@ -371,9 +240,7 @@ async function saveArticle(result, topic, category, forceFile, seedPoolExhausted
     similarity: Math.round(result.maxSim * 100),
     similarTo: result.mostSimilarSlug,
     status: "NEEDS_REVIEW",
-    issues: seedPoolExhausted
-      ? [...result.issues, "pool de seeds esgotado — tópico reaproveitado; adicione novos seeds em SEEDS"]
-      : result.issues,
+    issues: result.issues,
   });
 
   return article.file;
@@ -413,7 +280,7 @@ async function main() {
         generation,
         existingSignatures: getExistingSignatures(),
       });
-      const file = await saveArticle(result, topicArg, category, forceFileArg, false);
+      const file = await saveArticle(result, topicArg, category, forceFileArg);
       console.log(`💾 Atualizado: ${file} (${result.wordCount} palavras, via ${result.provider})`);
     } catch (err) {
       console.error(`❌ Erro ao regenerar: ${err.message}`);
@@ -429,16 +296,14 @@ async function main() {
     return;
   }
 
-  const count = countArg || 1;
+  const count = countArg;
+  if (!Number.isInteger(count) || count < 1 || count > 20) {
+    throw new Error("Informe uma quantidade entre 1 e 20 para --count.");
+  }
 
   for (let i = 0; i < count; i++) {
-    const { topic, category, seedPoolExhausted, newsFact } = buildTopic();
-    const newsLabel = newsFact
-      ? newsFact.consolidated
-        ? `  📰 (consolidado de ${newsFact.items.length} notícias)`
-        : "  📰 (baseado em notícia real)"
-      : "";
-    console.log(`\n📝 ${i + 1}/${count}: ${topic}${newsLabel}`);
+    const { topic, category } = buildTopic();
+    console.log(`\n📝 ${i + 1}/${count}: ${topic}`);
 
     try {
       const result = await ag.generateValidatedArticle({
@@ -446,9 +311,8 @@ async function main() {
         category,
         generation,
         existingSignatures: getExistingSignatures(),
-        newsFact,
       });
-      const file = await saveArticle(result, topic, category, null, seedPoolExhausted);
+      const file = await saveArticle(result, topic, category, null);
 
       const used = loadJson(usedTopicsLogPath, []);
       used.push(topic);

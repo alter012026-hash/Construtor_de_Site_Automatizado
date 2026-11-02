@@ -1,76 +1,34 @@
 import Link from "next/link";
-import config from "../../site.config";
+import profile from "../../data/site-profile.json";
 
 export const metadata = {
-  title: `Contato - ${config.name}`,
-  description: `Fale com a equipe do ${config.name} — dúvidas, sugestões de pauta ou solicitações sobre seus dados.`,
+  title: "Contato",
+  description: "Entre em contato com a equipe responsável pelo hub.",
 };
 
-export default function ContatoPage() {
+export default function ContactPage() {
+  const email = profile.contactEmail?.trim();
 
   return (
-    <>
-      <main className="section section--light">
+    <main className="section section--light">
       <div className="container article-layout">
-
         <article className="prose">
-
-          {/* HERO DA PÁGINA */}
-          <header className="reveal">
+          <header>
             <h1>Contato</h1>
             <p className="article-excerpt">
-              Encontrou um erro, precisa solicitar uma correção ou quer sugerir um tema sobre {config.niche}? Fale com a equipe editorial.
+              Use o canal de contato configurado pelo responsável do hub para dúvidas,
+              solicitações ou correções.
             </p>
           </header>
-
           <hr className="article-divider" />
-
-          {/* BLOCO 1 — E-MAIL */}
-          <div className="reveal">
-            <h2>E-mail</h2>
-            <p>
-              A forma mais rápida de falar com a gente é por e-mail:{" "}
-              <a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a>.
-            </p>
-            <p>Costumamos responder em até 2 dias úteis.</p>
-          </div>
-
-          {/* BLOCO 2 — O QUE VOCÊ PODE NOS ENVIAR */}
-          <div className="reveal">
-            <h2>Sobre o que você pode nos escrever</h2>
-            <ul className="reveal-stagger">
-              <li>Erros ou informações desatualizadas em algum artigo;</li>
-              <li>Sugestões de temas sobre {config.niche} que gostaria de ver por aqui;</li>
-              <li>
-                Solicitações sobre seus dados pessoais (acesso, correção ou exclusão) — veja
-                também nossa <Link href="/privacidade">Política de Privacidade</Link>;
-              </li>
-              <li>Parcerias e outras oportunidades.</li>
-            </ul>
-          </div>
-
-          {/* BLOCO 3 — NEWSLETTER */}
-          {config.modules?.newsletter && <div className="reveal">
-            <h2>Quer cancelar a newsletter?</h2>
-            <p>
-              Não precisa nos escrever para isso — todo e-mail que enviamos tem um link de
-              cancelamento (unsubscribe) no rodapé, que remove seu e-mail imediatamente da
-              lista.
-            </p>
-          </div>}
-
-          {/* CTA FINAL */}
-          <div className="related-posts reveal">
-            <h3>Quer ler mais enquanto isso?</h3>
-            <Link href="/blog" className="hero-cta">
-              Ver todos os artigos →
-            </Link>
-          </div>
-
+          {email ? (
+            <p>E-mail: <a href={`mailto:${email}`}>{email}</a></p>
+          ) : (
+            <p>O responsável ainda não configurou um e-mail público de contato.</p>
+          )}
+          <p>Para informações sobre dados e integrações, consulte a <Link href="/privacidade">Política de Privacidade</Link>.</p>
         </article>
-
       </div>
-      </main>
-    </>
+    </main>
   );
 }

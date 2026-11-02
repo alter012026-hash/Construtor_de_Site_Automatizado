@@ -1,9 +1,4 @@
 {
   "version": 1,
-  "sites": [
-    {
-      "slug": "descomplica-bula",
-      "active": true
-    }
-  ]
+  "sites": []
 }

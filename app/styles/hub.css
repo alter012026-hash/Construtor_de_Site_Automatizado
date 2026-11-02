@@ -228,7 +228,8 @@
   border-bottom: 1px solid #e5e9ef;
   background: white;
 }
-.managed-site-brand { color: var(--site-primary); font-size: 18px; font-weight: 850; text-decoration: none; }
+.managed-site-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--site-primary); font-size: 18px; font-weight: 850; text-decoration: none; }
+.managed-site-logo { display: block; width: auto; max-width: 180px; max-height: 42px; object-fit: contain; }
 .managed-site-nav { display: flex; gap: 18px; }
 .managed-site-nav a { color: #475569; font-size: 14px; font-weight: 650; text-decoration: none; }
 .managed-site-nav a:hover { color: var(--site-primary); }

@@ -11,7 +11,12 @@ export default function ManagedSiteShell({ site, children }) {
       style={{ "--site-primary": primaryColor, "--site-accent": accentColor }}
     >
       <header className="managed-site-header">
-        <Link className="managed-site-brand" href={basePath}>{site.profile.name}</Link>
+        <Link className="managed-site-brand" href={basePath}>
+          {site.profile.logoUrl && (
+            <img className="managed-site-logo" src={site.profile.logoUrl} alt="" />
+          )}
+          {site.profile.name}
+        </Link>
         <nav className="managed-site-nav" aria-label={`Navegação de ${site.profile.name}`}>
           <Link href={basePath}>Início</Link>
           <Link href={`${basePath}/blog`}>Conteúdos</Link>

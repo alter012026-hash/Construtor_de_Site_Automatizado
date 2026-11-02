@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPostBySlug, getAllSlugs, getRelatedPosts, getPostContentHtml } from "../../../../../lib/posts";
-import { getRegisteredSite, getRegisteredSites } from "../../../../../lib/site-registry";
+import { getRegisteredSite, getRegisteredSites, getSitePublicUrl } from "../../../../../lib/site-registry";
 
 export function generateStaticParams() {
   return getRegisteredSites({ includeInactive: false }).flatMap((site) =>
@@ -14,11 +14,19 @@ export async function generateMetadata({ params }) {
   const site = getRegisteredSite(siteSlug, { includeInactive: false });
   const post = site ? getPostBySlug(slug, site.profile) : null;
   if (!site || !post) return {};
+  const canonicalUrl = `${getSitePublicUrl(site)}/blog/${post.slug}`;
 
   return {
     title: post.title,
     description: post.excerpt || site.profile.description,
-    alternates: { canonical: `/sites/${site.slug}/blog/${post.slug}` },
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      type: "article",
+      url: canonicalUrl,
+      siteName: site.profile.name,
+      title: post.title,
+      description: post.excerpt || site.profile.description,
+    },
     robots: post.noindex ? { index: false, follow: false } : undefined,
   };
 }

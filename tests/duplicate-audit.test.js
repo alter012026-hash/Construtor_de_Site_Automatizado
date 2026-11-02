@@ -18,16 +18,16 @@ function post({ file, title, slug, signature, entities = [] }) {
 test("finds same-topic candidates and provides scores and reasons", () => {
   const candidates = auditPosts([
     post({
-      file: "2026-10-01-ler-bula-medicamento.md",
-      title: "Como entender a bula de um medicamento",
-      slug: "entender-bula-medicamento",
-      signature: ["bula", "medicamento", "seção", "informações"],
+      file: "2026-10-01-escolher-plantas-interior.md",
+      title: "Como escolher plantas para ambientes internos",
+      slug: "escolher-plantas-interior",
+      signature: ["escolher", "plantas", "ambientes", "internos"],
     }),
     post({
-      file: "2026-10-05-entender-bula-guia.md",
-      title: "Entenda a bula: guia atualizado",
-      slug: "entender-bula-medicamento",
-      signature: ["bula", "medicamento", "seção", "efeitos"],
+      file: "2026-10-05-melhores-plantas-para-casa.md",
+      title: "As melhores plantas para cultivar dentro de casa",
+      slug: "escolher-plantas-interior",
+      signature: ["escolher", "plantas", "ambientes", "casa"],
     }),
   ]);
 
@@ -41,45 +41,45 @@ test("finds same-topic candidates and provides scores and reasons", () => {
 test("retains reviewer false-positive decisions across audit runs", () => {
   const entries = [
     post({
-      file: "2026-10-01-anvisa-alerta-medicamento.md",
-      title: "Anvisa publica alerta sobre medicamento",
-      slug: "anvisa-alerta-medicamento",
-      signature: ["anvisa", "alerta", "medicamento", "recolhimento", "lote"],
-      entities: ["Anvisa"],
+      file: "2026-10-01-rega-de-suculentas.md",
+      title: "Como regar suculentas sem exagerar",
+      slug: "rega-suculentas",
+      signature: ["regar", "suculentas", "agua", "solo"],
+      entities: ["suculentas"],
     }),
     post({
-      file: "2026-10-02-alerta-recolhimento.md",
-      title: "Alerta oficial: recolhimento de medicamento",
-      slug: "alerta-recolhimento-medicamento",
-      signature: ["anvisa", "alerta", "medicamento", "recolhimento", "lote"],
-      entities: ["Anvisa"],
+      file: "2026-10-02-frequencia-rega-suculentas.md",
+      title: "Qual é a frequência ideal para regar suculentas",
+      slug: "frequencia-rega-suculentas",
+      signature: ["regar", "suculentas", "agua", "frequencia"],
+      entities: ["suculentas"],
     }),
   ];
   const firstRun = auditPosts(entries);
   const secondRun = auditPosts(entries, [{
     id: firstRun[0].id,
     decision: "false_positive",
-    reviewReason: "Temas relacionados, mas necessidades de busca diferentes.",
+    reviewReason: "Conteúdos relacionados, mas intenções diferentes.",
     reviewedAt: "2026-10-19T12:00:00.000Z",
   }]);
 
   assert.equal(secondRun[0].decision, "false_positive");
-  assert.equal(secondRun[0].reviewReason, "Temas relacionados, mas necessidades de busca diferentes.");
+  assert.equal(secondRun[0].reviewReason, "Conteúdos relacionados, mas intenções diferentes.");
 });
 
 test("does not report unrelated article pairs", () => {
   const candidates = auditPosts([
     post({
-      file: "2026-10-01-ler-bula.md",
-      title: "Como ler a bula de um medicamento",
-      slug: "ler-bula",
-      signature: ["bula", "medicamento", "composição", "efeitos"],
+      file: "2026-10-01-escolher-plantas.md",
+      title: "Como escolher plantas para a varanda",
+      slug: "escolher-plantas",
+      signature: ["plantas", "varanda", "luz", "vasos"],
     }),
     post({
-      file: "2026-10-02-armazenar-insulina.md",
-      title: "Como armazenar insulina com segurança",
-      slug: "armazenar-insulina",
-      signature: ["insulina", "armazenamento", "temperatura", "conservação"],
+      file: "2026-10-02-ferramentas-de-jardinagem.md",
+      title: "Ferramentas básicas para começar a jardinagem",
+      slug: "ferramentas-jardinagem",
+      signature: ["ferramentas", "jardinagem", "tesoura", "vasos"],
     }),
   ]);
 

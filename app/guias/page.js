@@ -34,14 +34,24 @@ export default function GuidesPage() {
             <li><strong>Público e voz:</strong> para quem se escreve, nível de conhecimento e tom editorial.</li>
             <li><strong>Estrutura editorial:</strong> categorias claras, pautas iniciais e regras de qualidade.</li>
             <li><strong>Fontes:</strong> cadastre domínios permitidos quando a precisão do nicho exigir referências.</li>
-            <li><strong>Módulos:</strong> ative somente os recursos adequados ao projeto; módulos de saúde são opcionais.</li>
-            <li><strong>SEO e monetização:</strong> configure metadados e espaços de anúncio, sem inserir credenciais no perfil.</li>
+            <li><strong>Módulos:</strong> ative somente os recursos adequados ao projeto.</li>
+            <li><strong>SEO e monetização:</strong> configure metadados e espaços de anúncio; mantenha credenciais em variáveis seguras.</li>
           </ol>
           <p>O endereço público inicial usa o padrão <code>/sites/identificador</code>.</p>
         </section>
 
+        <section className="hub-guide-section" id="infraestrutura">
+          <h2>3. Conecte as ferramentas de publicação</h2>
+          <ul>
+            <li>Cadastre as chaves dos provedores de IA no ambiente local ou no painel seguro da Vercel.</li>
+            <li>Conecte o repositório GitHub e a branch usada para publicar os perfis e o conteúdo.</li>
+            <li>Para usar um domínio comprado, salve o domínio no perfil, conecte-o à Vercel e aplique os registros DNS fornecidos pelo painel.</li>
+            <li>Cadastre a propriedade no Google Search Console, verifique o domínio e envie o sitemap após o deploy.</li>
+          </ul>
+        </section>
+
         <section className="hub-guide-section" id="conteudo">
-          <h2>3. Produza conteúdo com controle</h2>
+          <h2>4. Produza conteúdo com controle</h2>
           <ul>
             <li>Comece com pautas específicas associadas a categorias, não com listas genéricas repetidas.</li>
             <li>Use geração automática como apoio para rascunhos; verifique fatos, fontes, datas e direitos de uso.</li>
@@ -51,7 +61,7 @@ export default function GuidesPage() {
         </section>
 
         <section className="hub-guide-section" id="lancamento">
-          <h2>4. Revise e lance</h2>
+          <h2>5. Revise e lance</h2>
           <ul>
             <li>Confira artigos, navegação, páginas de contato, privacidade e metodologia.</li>
             <li>Teste o site em celular e desktop, confirme links e revise título e descrição para busca.</li>

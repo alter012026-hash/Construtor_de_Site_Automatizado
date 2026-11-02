@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkAdminAuth } from "../../../lib/admin-auth";
 import { checkRateLimit, getClientIp } from "../../../lib/rate-limit";
 import { getAllSlugs } from "../../../lib/posts";
+import { getRegisteredSites } from "../../../lib/site-registry";
 import { CONSENT_COOKIE, parseConsent, parseCookieHeader } from "../../../lib/consent";
 import {
   dayKey,
@@ -70,7 +71,13 @@ export async function POST(request) {
 
     const body = await request.json().catch(() => null);
     const slugs = new Set(getAllSlugs());
-    const path = normalizePath(body?.path, slugs);
+    const managedSites = new Map(
+      getRegisteredSites({ includeInactive: false }).map((site) => [
+        site.slug,
+        new Set(getAllSlugs(site.profile)),
+      ])
+    );
+    const path = normalizePath(body?.path, slugs, managedSites);
     if (!path) return done();
 
     // Camada com consentimento: só existe se o visitante aceitou os cookies.

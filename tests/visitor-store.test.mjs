@@ -168,10 +168,10 @@ test("fluxo completo: visita nova, páginas, tempo, ação, painel e apagar", as
     meta: { device: "Mobile", browser: "Chrome", os: "Android", country: "BR", region: "MG", city: "Varginha", referrer: "google", channel: "Busca orgânica", utm: null },
   });
   // 2ª página (mesma visita)
-  await recordVisitorPageview({ ...resolveIds(Object.fromEntries(a.cookies.map((c) => [c.name, c.value]))), path: "/blog/entenda-a-bula", now: t(1) });
+  await recordVisitorPageview({ ...resolveIds(Object.fromEntries(a.cookies.map((c) => [c.name, c.value]))), path: "/sites/jardim/blog/guia", now: t(1) });
   // sai da 1ª página depois de 45 s e da 2ª depois de 30 s
   await recordVisitorEngagement({ sid: a.sid, path: "/blog/como-estudar", seconds: 45, scroll: 80, now: t(1) });
-  await recordVisitorEngagement({ sid: a.sid, path: "/blog/entenda-a-bula", seconds: 30, scroll: 20, now: t(2) });
+  await recordVisitorEngagement({ sid: a.sid, path: "/sites/jardim/blog/guia", seconds: 30, scroll: 20, now: t(2) });
   // ação no site
   await recordVisitorEvent({ sid: a.sid, event: { name: "newsletter_signup_start", dim: "/blog" }, path: "/blog", now: t(2) });
   await recordVisitorEvent({ sid: a.sid, event: { name: "newsletter_signup_success", dim: "/blog" }, path: "/blog", now: t(3) });
@@ -185,13 +185,13 @@ test("fluxo completo: visita nova, páginas, tempo, ação, painel e apagar", as
   await recordVisitorPageview({ ...a2, path: "/blog", now: t(40), meta: { country: "BR" } });
 
   // pv:d:… (estatística anônima) para a cobertura
-  redis.db.set("descomplica-bula:pv:d:2026-10-25", new Map([["s", "10"]]));
+  redis.db.set("site-hub:pv:d:2026-10-25", new Map([["s", "10"]]));
 
   // Retenção definida
-  assert.ok(redis.ttl.get(`descomplica-bula:vs:${a.sid}`) === 90 * 86400);
-  assert.ok(redis.ttl.get(`descomplica-bula:vl:${a.sid}`) === 90 * 86400);
-  assert.ok(redis.ttl.get("descomplica-bula:cv:d:2026-10-25") > 0);
-  assert.ok(redis.ttl.get("descomplica-bula:cv:u:2026-10-25") > 0);
+  assert.ok(redis.ttl.get(`site-hub:vs:${a.sid}`) === 90 * 86400);
+  assert.ok(redis.ttl.get(`site-hub:vl:${a.sid}`) === 90 * 86400);
+  assert.ok(redis.ttl.get("site-hub:cv:d:2026-10-25") > 0);
+  assert.ok(redis.ttl.get("site-hub:cv:u:2026-10-25") > 0);
 
   // Agregados
   const stats = await readVisitorStats(7, { titleBySlug: { "como-estudar": "Como estudar" } });
@@ -240,9 +240,9 @@ test("fluxo completo: visita nova, páginas, tempo, ação, painel e apagar", as
   const after = await listSessions({ limit: 10 });
   assert.equal(after.total, 1);
   assert.equal(after.sessions[0].landing, "/");
-  assert.equal(redis.db.has(`descomplica-bula:vv:${a.vid}`), false);
-  assert.equal(redis.db.has(`descomplica-bula:vl:${a.sid}`), false);
-  assert.equal(redis.db.has(`descomplica-bula:vl:${b.sid}`), true);
+  assert.equal(redis.db.has(`site-hub:vv:${a.vid}`), false);
+  assert.equal(redis.db.has(`site-hub:vl:${a.sid}`), false);
+  assert.equal(redis.db.has(`site-hub:vl:${b.sid}`), true);
 });
 
 test("engajamento ignora tempo zero e limita valores absurdos", async () => {
@@ -250,10 +250,10 @@ test("engajamento ignora tempo zero e limita valores absurdos", async () => {
   const ids = resolveIds({});
   await recordVisitorPageview({ ...ids, path: "/", meta: {} });
   await recordVisitorEngagement({ sid: ids.sid, path: "/", seconds: 0, scroll: 0 }); // nada a registrar
-  assert.equal(redis.db.get(`descomplica-bula:vs:${ids.sid}`).get("sec"), undefined);
+  assert.equal(redis.db.get(`site-hub:vs:${ids.sid}`).get("sec"), undefined);
   await recordVisitorEngagement({ sid: ids.sid, path: "/", seconds: 99999, scroll: 500 });
-  assert.equal(redis.db.get(`descomplica-bula:vs:${ids.sid}`).get("sec"), "1800");
-  assert.match(redis.db.get(`descomplica-bula:vl:${ids.sid}`).at(-1), /\|1800\|100$/);
+  assert.equal(redis.db.get(`site-hub:vs:${ids.sid}`).get("sec"), "1800");
+  assert.match(redis.db.get(`site-hub:vl:${ids.sid}`).at(-1), /\|1800\|100$/);
 });
 
 test("aggregateVisitors com dias vazios não quebra nem divide por zero", () => {

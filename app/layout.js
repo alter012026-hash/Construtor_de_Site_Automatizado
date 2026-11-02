@@ -1,26 +1,15 @@
 import "./styles/tokens.css";
-import "./styles/chrome.css";
-import "./styles/home.css";
 import "./styles/article.css";
-import "./styles/pages.css";
-import "./styles/transitions.css";
-import "./styles/health.css";
 import "./styles/hub.css";
 import { Bricolage_Grotesque, Literata } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
-import AdSenseScript from "../components/AdSenseScript";
 import AnalyticsEvents from "../components/AnalyticsEvents";
 import ConsentBanner from "../components/ConsentBanner";
 import PageViewTracker from "../components/PageViewTracker";
 import PageTransition from "../components/PageTransition";
 import RouteProgress from "../components/RouteProgress";
 import ViewTransitions from "../components/ViewTransitions";
-import Header from "../components/Header";
-import MobileDock from "../components/MobileDock";
-import Footer from "../components/Footer";
 import HideOn from "../components/HideOn";
-import { getSearchIndex } from "../lib/search-index";
-import config from "../site.config";
 
 const isVercelProduction =
   process.env.VERCEL === "1" && process.env.VERCEL_ENV === "production";
@@ -65,7 +54,7 @@ export const metadata = {
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    siteName: "Construtor de Sites Automatizados",
+    siteName: "Hub de Sites Automatizados",
     description: "Planeje, configure e administre sites automatizados de diferentes nichos.",
   },
   twitter: {
@@ -79,12 +68,8 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const searchIndex = getSearchIndex();
-  const primaryColor = config.brand?.primaryColor || "#B4232C";
-  const accentColor = config.brand?.accentColor || "#B54708";
-
   return (
-    <html lang={config.language.toLowerCase()} className={`${display.variable} ${read.variable}`} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${display.variable} ${read.variable}`} suppressHydrationWarning>
       <head>
         {/* Tema salvo aplicado ANTES do primeiro paint (sem flash claro→escuro). */}
         <script
@@ -95,36 +80,20 @@ export default function RootLayout({ children }) {
       </head>
       <body
         style={{
-          "--color-primary": primaryColor,
-          "--color-primary-dark": primaryColor,
-          "--color-primary-light": `${primaryColor}22`,
-          "--color-chip-text": primaryColor,
-          "--color-focus": `${primaryColor}59`,
-          "--color-warning": accentColor,
+          "--color-primary": "#164E63",
+          "--color-primary-dark": "#0F3B4D",
+          "--color-primary-light": "#164E6322",
+          "--color-chip-text": "#164E63",
+          "--color-focus": "#164E6359",
+          "--color-warning": "#D97706",
         }}
       >
-        <HideOn paths={["/", "/guias", "/sites"]}>
-          <AdSenseScript
-            enabled={
-              isVercelProduction &&
-              config.adsense.enabled &&
-              config.adsense.publisherId !== "ca-pub-XXXXXXXXXXXXXXXX"
-            }
-          />
-        </HideOn>
         <RouteProgress />
         <ViewTransitions />
-        <HideOn paths={["/", "/guias", "/sites"]}>
-          <Header posts={searchIndex} />
-        </HideOn>
         <PageTransition>{children}</PageTransition>
-        <HideOn paths={["/admin", "/", "/guias", "/sites"]}>
-          <Footer />
-        </HideOn>
-        <MobileDock />
         <AnalyticsEvents />
         <PageViewTracker />
-        <HideOn paths={["/admin", "/", "/guias", "/sites"]}>
+        <HideOn paths={["/admin"]}>
           <ConsentBanner />
         </HideOn>
         {isVercelProduction && <Analytics />}

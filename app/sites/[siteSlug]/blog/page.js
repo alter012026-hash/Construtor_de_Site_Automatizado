@@ -2,10 +2,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import PostCard from "../../../../components/PostCard";
 import { getAllPosts } from "../../../../lib/posts";
-import { getRegisteredSite, getRegisteredSites } from "../../../../lib/site-registry";
+import { getRegisteredSite, getRegisteredSites, getSitePublicUrl } from "../../../../lib/site-registry";
 
 export function generateStaticParams() {
   return getRegisteredSites({ includeInactive: false }).map(({ slug }) => ({ siteSlug: slug }));
+}
+
+export async function generateMetadata({ params }) {
+  const { siteSlug } = await params;
+  const site = getRegisteredSite(siteSlug, { includeInactive: false });
+  if (!site) return {};
+  const siteUrl = getSitePublicUrl(site);
+  return {
+    title: `Conteúdos | ${site.profile.name}`,
+    description: site.profile.description,
+    alternates: { canonical: `${siteUrl}/blog` },
+  };
 }
 
 export default async function ManagedSiteBlog({ params, searchParams }) {

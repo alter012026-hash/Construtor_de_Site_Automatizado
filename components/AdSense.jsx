@@ -7,7 +7,7 @@ import config from "../site.config";
  * Anúncio em local FIXO do layout.
  *
  * Cada local (`placement`) é um contêiner com altura reservada (ver .ad-slot
- * em chrome.css): o anúncio só aparece dentro dele, não empurra o texto
+ * no contêiner do anúncio): o anúncio só aparece dentro dele, não empurra o texto
  * quando carrega e some por inteiro se o Google não tiver o que exibir.
  *
  * Locais em uso:

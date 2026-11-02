@@ -1,5 +1,5 @@
 {
-  "name": "descomplica-bula",
+  "name": "site-automation-hub",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -15,7 +15,6 @@
     "check:redis": "node scripts/check-redis.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.20.0",
     "@tiptap/extension-image": "^3.32.0",
     "@tiptap/extension-link": "^3.32.0",
     "@tiptap/extension-placeholder": "^3.32.0",
@@ -31,7 +30,6 @@
     "js-yaml": "^4.3.2",
     "marked": "^12.0.2",
     "next": "^15.5.28",
-    "pdf-parse": "^2.4.5",
     "react": "^18",
     "react-dom": "^18",
     "reading-time": "^1.5.0",

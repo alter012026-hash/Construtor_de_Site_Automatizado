@@ -1,43 +1,35 @@
 import Link from "next/link";
-import config from "../../site.config";
 
 export const metadata = {
-  title: `Sobre - ${config.name}`,
-  description: `Conheça o propósito e os limites do ${config.name}.`,
+  title: "Sobre o hub",
+  description: "Conheça o hub para planejar, configurar e administrar sites de diferentes nichos.",
 };
 
-export default function SobrePage() {
-  const healthEnabled = config.modules?.health === true;
-  const sourcesEnabled = config.modules?.officialSources === true;
-
+export default function AboutPage() {
   return (
     <main className="section section--light">
       <div className="container article-layout">
         <article className="prose">
           <header>
-            <h1>Sobre o projeto</h1>
+            <h1>Sobre o hub</h1>
             <p className="article-excerpt">
-              {config.description}
+              Um painel central para criar e administrar projetos editoriais de diferentes nichos,
+              com identidade, conteúdo e publicação configurados por site.
             </p>
           </header>
           <hr className="article-divider" />
-          <h2>O que é o {config.name}?</h2>
+          <h2>Projetos independentes</h2>
           <p>
-            Somos um projeto editorial independente sobre {config.niche}. Produzimos conteúdo para
-            {` ${config.editorial?.audience || "leitores interessados no tema"}`} com transparência e revisão editorial.
+            Cada site pode ter domínio, identidade visual, categorias, regras editoriais e
+            metadados próprios. Conteúdo e estado de geração são separados por projeto.
           </p>
-          <h2>Como trabalhamos</h2>
+          <h2>Configuração responsável</h2>
           <p>
-            {config.methodology.summary} Consulte nossa <Link href="/metodologia">metodologia editorial</Link>.
+            Ferramentas de automação apoiam a produção e a publicação. O responsável por cada
+            projeto deve revisar o conteúdo, configurar os serviços utilizados e manter suas
+            credenciais protegidas.
           </p>
-          {healthEnabled && (
-            <>
-              <h2>Um limite importante</h2>
-              <p>O conteúdo não substitui a bula oficial nem a orientação de um profissional de saúde.</p>
-              <p><Link href="/aviso-de-saude">Leia nosso aviso de saúde</Link>.</p>
-            </>
-          )}
-          {sourcesEnabled && <p><Link href="/fontes-oficiais">Consulte as fontes recomendadas</Link>.</p>}
+          <p><Link href="/guias">Consulte os guias de configuração.</Link></p>
         </article>
       </div>
     </main>

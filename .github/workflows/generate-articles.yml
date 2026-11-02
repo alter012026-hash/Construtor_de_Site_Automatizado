@@ -1,34 +1,37 @@
-name: Gerar e Publicar Artigos
+name: Gerar rascunhos do site
 
 on:
   schedule:
-  - cron: "0 11 * * *"   # 08:00 horário de Brasília (1 post por dia)
-
+    - cron: "0 11 * * *"
   workflow_dispatch:
     inputs:
+      site_slug:
+        description: "Identificador do site cadastrado no hub"
+        required: true
+        type: string
       topic:
-        description: "Tópico específico (opcional)"
+        description: "Pauta específica (opcional)"
         required: false
         default: ""
       count:
-        description: "Número de artigos"
+        description: "Quantidade de rascunhos"
         required: false
         default: "1"
 
-# 🔒 EVITA EXECUÇÕES DUPLICADAS
 concurrency:
-  group: article-generator
+  group: article-generator-${{ github.event.inputs.site_slug || vars.SITE_SLUG || 'scheduled' }}
   cancel-in-progress: false
 
 jobs:
   generate:
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
-
     env:
       TZ: America/Sao_Paulo
+      SITE_SLUG: ${{ github.event.inputs.site_slug || vars.SITE_SLUG }}
+      TOPIC: ${{ github.event.inputs.topic || '' }}
+      COUNT: ${{ github.event.inputs.count || '1' }}
 
     steps:
       - name: Checkout
@@ -45,8 +48,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate secrets
+      - name: Validate configuration
         run: |
+          if [ -z "$SITE_SLUG" ]; then
+            echo "Configure a repository variable SITE_SLUG or dispatch this workflow with site_slug."
+            exit 1
+          fi
+          node -e 'if (!require("./lib/site-registry").getRegisteredSite(process.env.SITE_SLUG)) { console.error("Site not found in data/sites.json:", process.env.SITE_SLUG); process.exit(1); }'
           if [ -z "${{ secrets.GROK_API_KEY }}" ] && \
              [ -z "${{ secrets.GROQ_API_KEY }}" ] && \
              [ -z "${{ secrets.CEREBRAS_API_KEY }}" ] && \
@@ -56,10 +64,7 @@ jobs:
             exit 1
           fi
 
-      - name: Buscar alertas oficiais de medicamentos
-        run: node scripts/scrape-alertas-anvisa.js
-
-      - name: Generate articles
+      - name: Generate editorial drafts
         env:
           GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -68,86 +73,33 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           set -e
-
-          TOPIC="${{ github.event.inputs.topic }}"
-          COUNT="${{ github.event.inputs.count }}"
-
-          if [ -z "$COUNT" ]; then
-            COUNT=1
-          fi
-
-          echo "🚀 Gerando $COUNT artigo(s)"
-          echo "🕒 Execução local: $(date)"
-
+          echo "Generating $COUNT draft(s) for $SITE_SLUG"
           if [ -n "$TOPIC" ]; then
-            node scripts/generate-article.js --topic "$TOPIC" --count "$COUNT"
+            node scripts/generate-article.js --site "$SITE_SLUG" --topic "$TOPIC" --count "$COUNT"
           else
-            node scripts/generate-article.js --count "$COUNT"
+            node scripts/generate-article.js --site "$SITE_SLUG" --count "$COUNT"
           fi
 
-      - name: Check changes
+      - name: Stage site-specific drafts and state
         id: changes
         run: |
-          # Artigos gerados ficam em NEEDS_REVIEW; este workflow não publica
-          # diretamente em posts/. O admin promove um rascunho após revisão.
-          # IMPORTANTE: .used-topics.json, .content-signatures.json e
-          # .quality-log.json também precisam ser commitados — são a
-          # "memória" que impede o pipeline de gerar posts quase-duplicados.
-          # Antes só posts/ e public/images/ eram commitados, então esses
-          # arquivos eram recriados vazios a cada execução do Actions e a
-          # checagem de duplicidade nunca enxergava o histórico real.
-          git add .editorial-drafts.json public/images/ .used-topics.json .content-signatures.json .quality-log.json .pending-news-topics.json .used-news-links.json
-
+          CONTENT_DIRECTORY=$(node -e 'process.stdout.write(require("./lib/site-registry").getRegisteredSite(process.env.SITE_SLUG).profile.contentDirectory)')
+          STATE_DIRECTORY=".editorial-state/${CONTENT_DIRECTORY#posts/}"
+          git add "$CONTENT_DIRECTORY"
+          git add -f "$STATE_DIRECTORY"
           if git diff --cached --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Nenhum artigo novo gerado"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
 
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          echo "new_files<<EOF" >> $GITHUB_OUTPUT
-          git diff --cached --name-only | head -10 >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Commit & push
+      - name: Commit and push
         if: steps.changes.outputs.has_changes == 'true'
         run: |
           git config user.name "ArticleBot"
           git config user.email "bot@github.com"
-
-          DATE=$(date "+%Y-%m-%d %H:%M:%S %Z")
-
-          git commit -m "✍️ Artigos automáticos — $DATE"
-
-          for i in 1 2 3 4 5; do
-            if git push; then
-              echo "Push ok (tentativa $i)"
-              break
-            fi
-
-            if [ "$i" -eq 5 ]; then
-              echo "Push falhou apos 5 tentativas - abortando sem sobrescrever nada."
-              exit 1
-            fi
-
-            echo "Push rejeitado (tentativa $i), sincronizando com origin/main..."
-            git fetch origin main
-
-            if ! git rebase origin/main; then
-              echo "Conflito no rebase — verificando se é só nos arquivos de estado (auto-resolvível)..."
-
-              if node scripts/resolve-state-conflicts.js; then
-                echo "Conflito resolvido automaticamente — continuando o rebase."
-                GIT_EDITOR=true git rebase --continue
-              else
-                echo "Conflito real de conteúdo (não é só arquivo de estado). Abortando sem forçar."
-                git rebase --abort
-                exit 1
-              fi
-            fi
-
-            sleep 5
-          done
+          git commit -m "Generate editorial drafts for $SITE_SLUG"
+          git push
 
       - name: Deploy Vercel
         if: steps.changes.outputs.has_changes == 'true'
@@ -155,12 +107,5 @@ jobs:
           VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
         run: |
           if [ -n "$VERCEL_DEPLOY_HOOK" ]; then
-            curl -s -X POST "$VERCEL_DEPLOY_HOOK"
+            curl --fail --silent --show-error -X POST "$VERCEL_DEPLOY_HOOK"
           fi
-
-      - name: Summary
-        if: always()
-        run: |
-          echo "==== EXECUTION SUMMARY ===="
-          echo "Time: $(date)"
-          echo "Changes: ${{ steps.changes.outputs.has_changes }}"

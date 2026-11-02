@@ -25,10 +25,13 @@ test("isBot bloqueia robôs e UA vazio, libera navegadores", () => {
 });
 
 test("normalizePath só aceita páginas públicas conhecidas", () => {
-  const slugs = new Set(["cuidados-com-a-bula"]);
+  const slugs = new Set(["cultivo-de-plantas"]);
+  const managedSites = new Map([["jardim", slugs]]);
   assert.equal(normalizePath("/", slugs), "/");
-  assert.equal(normalizePath("/blog/?categoria=Entenda%20a%20bula", slugs), "/blog");
-  assert.equal(normalizePath("/blog/cuidados-com-a-bula/", slugs), "/blog/cuidados-com-a-bula");
+  assert.equal(normalizePath("/sites/jardim/blog/?categoria=Plantas", slugs, managedSites), "/sites/jardim/blog");
+  assert.equal(normalizePath("/sites/jardim/blog/cultivo-de-plantas/", slugs, managedSites), "/sites/jardim/blog/cultivo-de-plantas");
+  assert.equal(normalizePath("/sites/desconhecido/blog", slugs, managedSites), null);
+  assert.equal(normalizePath("/sites/jardim/blog/artigo-inexistente", slugs, managedSites), null);
   assert.equal(normalizePath("/blog/slug-inexistente", slugs), null);
   assert.equal(normalizePath("/admin", slugs), null);
   assert.equal(normalizePath("/api/track", slugs), null);
