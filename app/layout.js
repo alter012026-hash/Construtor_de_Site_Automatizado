@@ -5,6 +5,7 @@ import "./styles/article.css";
 import "./styles/pages.css";
 import "./styles/transitions.css";
 import "./styles/health.css";
+import "./styles/hub.css";
 import { Bricolage_Grotesque, Literata } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import AdSenseScript from "../components/AdSenseScript";
@@ -50,27 +51,25 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: { default: config.name, template: `%s | ${config.name}` },
-  description: config.description,
-  keywords: config.keywords,
-  authors: [{ name: config.author.name }],
-  creator: config.author.name,
-  metadataBase: new URL(config.url),
+  title: { default: "Construtor de Sites Automatizados", template: "%s | Construtor de Sites" },
+  description: "Planeje, configure e administre sites automatizados de diferentes nichos a partir de um painel central.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL
+      || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
+      || (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`)
+      || "http://localhost:3000"
+  ),
   // Canônico padrão = a própria URL da página, sem query (?fbclid, ?utm...). Páginas que
   // definem o seu (blog e artigo) sobrescrevem este valor.
   alternates: { canonical: "./" },
   openGraph: {
     type: "website",
-    locale: config.locale,
-    url: config.url,
-    siteName: config.name,
-    description: config.description,
-    images: [{ url: config.seo.ogImage, width: 1200, height: 630, alt: config.name }],
+    locale: "pt_BR",
+    siteName: "Construtor de Sites Automatizados",
+    description: "Planeje, configure e administre sites automatizados de diferentes nichos.",
   },
   twitter: {
     card: "summary_large_image",
-    images: [config.seo.ogImage],
-    ...(config.seo.twitterHandle ? { site: config.seo.twitterHandle } : {}),
   },
   robots: {
     index: true,
@@ -85,7 +84,7 @@ export default function RootLayout({ children }) {
   const accentColor = config.brand?.accentColor || "#B54708";
 
   return (
-    <html lang={config.language.toLowerCase()} className={`${display.variable} ${read.variable}`}>
+    <html lang={config.language.toLowerCase()} className={`${display.variable} ${read.variable}`} suppressHydrationWarning>
       <head>
         {/* Tema salvo aplicado ANTES do primeiro paint (sem flash claro→escuro). */}
         <script
@@ -93,9 +92,6 @@ export default function RootLayout({ children }) {
             __html: `(function(){try{var d=document.documentElement;var t=localStorage.getItem('theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}d.setAttribute('data-theme',t);if(/^\\/admin(\\/|$)/.test(location.pathname)){d.setAttribute('data-nodock','');}}catch(e){}})();`,
           }}
         />
-        {config.seo.googleSiteVerification && (
-          <meta name="google-site-verification" content={config.seo.googleSiteVerification} />
-        )}
       </head>
       <body
         style={{
@@ -107,24 +103,28 @@ export default function RootLayout({ children }) {
           "--color-warning": accentColor,
         }}
       >
-        <AdSenseScript
-          enabled={
-            isVercelProduction &&
-            config.adsense.enabled &&
-            config.adsense.publisherId !== "ca-pub-XXXXXXXXXXXXXXXX"
-          }
-        />
+        <HideOn paths={["/", "/guias", "/sites"]}>
+          <AdSenseScript
+            enabled={
+              isVercelProduction &&
+              config.adsense.enabled &&
+              config.adsense.publisherId !== "ca-pub-XXXXXXXXXXXXXXXX"
+            }
+          />
+        </HideOn>
         <RouteProgress />
         <ViewTransitions />
-        <Header posts={searchIndex} />
+        <HideOn paths={["/", "/guias", "/sites"]}>
+          <Header posts={searchIndex} />
+        </HideOn>
         <PageTransition>{children}</PageTransition>
-        <HideOn paths={["/admin"]}>
+        <HideOn paths={["/admin", "/", "/guias", "/sites"]}>
           <Footer />
         </HideOn>
         <MobileDock />
         <AnalyticsEvents />
         <PageViewTracker />
-        <HideOn paths={["/admin"]}>
+        <HideOn paths={["/admin", "/", "/guias", "/sites"]}>
           <ConsentBanner />
         </HideOn>
         {isVercelProduction && <Analytics />}

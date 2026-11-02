@@ -34,7 +34,17 @@ const { getLocalEditorialStatePath } = require("../lib/editorial-state.js");
 // ─────────────────────────────────────────────
 // SAFE CONFIG LOADER (mantido do original)
 // ─────────────────────────────────────────────
+const initialArgs = process.argv.slice(2);
+const siteArg = initialArgs.includes("--site")
+  ? initialArgs[initialArgs.indexOf("--site") + 1]
+  : null;
 let siteConfigRaw = require("../site.config.js");
+if (siteArg) {
+  const { getRegisteredSite } = require("../lib/site-registry.js");
+  const site = getRegisteredSite(siteArg);
+  if (!site) throw new Error(`O site "${siteArg}" não existe no cadastro do hub.`);
+  siteConfigRaw = site.profile;
+}
 const siteConfig = siteConfigRaw?.default || siteConfigRaw || {};
 const generation = siteConfig?.generation || {};
 
@@ -52,7 +62,7 @@ const CATEGORIES = generation.categories || [
 ];
 
 // ─── CLI ──────────────────────────────────────────────────────────────
-const args = process.argv.slice(2);
+const args = initialArgs;
 
 const topicArg = args.includes("--topic")
   ? args[args.indexOf("--topic") + 1]
@@ -158,6 +168,7 @@ function saveEditorialDraft(article, result, topic) {
 
   if (existingIndex >= 0) drafts[existingIndex] = draft;
   else drafts.unshift(draft);
+  fs.mkdirSync(path.dirname(editorialDraftsPath), { recursive: true });
   fs.writeFileSync(editorialDraftsPath, `${JSON.stringify(drafts.slice(0, 400), null, 2)}\n`, "utf8");
 }
 

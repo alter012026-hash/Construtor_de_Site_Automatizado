@@ -21,7 +21,14 @@ function formatDate(dateStr) {
  * Celular: linha compacta (miniatura + título). A partir de 640px: card
  * vertical. `featured` = destaque grande com a foto em duotone.
  */
-export default function PostCard({ post, featured = false, photo = null, headingLevel = 3, related = false }) {
+export default function PostCard({
+  post,
+  featured = false,
+  photo = null,
+  headingLevel = 3,
+  related = false,
+  hrefPrefix = "/blog",
+}) {
   const formattedDate = formatDate(post.date);
   const meta = getCategoryMeta(post.category || "Geral");
   const H = `h${headingLevel}`;
@@ -48,7 +55,7 @@ export default function PostCard({ post, featured = false, photo = null, heading
 
         <H className="post-card-title">
           <Link
-            href={`/blog/${post.slug}`}
+            href={`${hrefPrefix}/${post.slug}`}
             data-analytics-event={related ? "related_article_click" : undefined}
             data-target-slug={related ? post.slug : undefined}
           >

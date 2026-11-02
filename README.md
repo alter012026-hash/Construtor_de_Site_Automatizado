@@ -1,6 +1,6 @@
-# Motor Editorial — Descomplica Bula
+# Construtor de Sites Automatizados
 
-Motor reutilizável para sites editoriais de nichos diferentes. O perfil inicial deste projeto é o Descomplica Bula; recursos de saúde são tratados como módulos opcionais e cada site deve ter seu próprio repositório, domínio e deploy.
+Hub central para planejar, criar e administrar sites editoriais de nichos diferentes. Cada projeto tem identidade, regras editoriais, módulos e pasta de conteúdo próprios. Os sites públicos são servidos em subpastas no formato `/sites/identificador`.
 
 ## Começar
 
@@ -12,19 +12,20 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Abra `http://localhost:3000`. Para acessar `/admin`, defina `ADMIN_PASSWORD` em `.env.local`. Chaves de IA, newsletter, GitHub e Redis são opcionais para executar o site; configure somente os serviços que utilizar.
+Abra `http://localhost:3000` para ver o hub e a biblioteca de guias. Para acessar `/admin`, defina `ADMIN_PASSWORD` em `.env.local`. Chaves de IA, newsletter, GitHub e Redis são opcionais para executar o site; configure somente os serviços que utilizar.
 
-## Criar um site de outro nicho
+## Criar e administrar sites
 
-1. Crie uma cópia/fork deste motor em um repositório próprio para o novo site e conecte-o a um deploy independente.
-2. No admin, abra **Configurações** e use **Começar perfil de outro nicho**.
-3. Percorra as etapas para preencher marca, público, tom, página inicial, categorias, regras editoriais, fontes, módulos, SEO e monetização.
-4. Cadastre ideias de pauta por categoria para carregá-las no admin e gerar rascunhos. Em nichos genéricos, essas pautas não exigem uma URL de fonte; se o perfil exigir fontes, informe os domínios permitidos antes de salvar.
-5. Configure as chaves de serviços como variáveis de ambiente no deploy; elas não fazem parte do perfil do site.
+1. Abra **Admin → Sites do hub → Criar novo site**.
+2. Siga o assistente para definir identidade, endereço, público, voz editorial, categorias, pautas, regras, fontes, módulos, SEO e monetização.
+3. Revise o resumo. Salve como oculto para continuar configurando, ou deixe visível para publicar no catálogo público.
+4. Abra **/guias** para consultar os roteiros de planejamento, produção, revisão e lançamento.
 
-O perfil completo fica em `data/site-profile.json`; `site.config.js` é apenas o carregador de compatibilidade. Cada perfil usa uma pasta de conteúdo (`contentDirectory`), então o perfil genérico começa em `posts/novo-site` e não exibe nem sobrescreve os artigos do perfil Bula, que continuam em `posts/`. Filas de revisão, assinaturas, métricas e pautas também ficam isoladas em `.editorial-state/novo-site/`; os arquivos históricos da instalação Bula permanecem compatíveis. Em produção, salvar no admin grava o JSON no GitHub e o push inicia um novo deploy. Para isso, configure `GITHUB_TOKEN` e `GITHUB_REPO` com permissão de escrita no repositório. Em desenvolvimento local, o perfil é salvo nesse arquivo diretamente.
+O catálogo e os perfis ficam em `data/sites.json`; o projeto inicial Descomplica Bula continua em `data/site-profile.json` para compatibilidade. Cada novo site recebe uma pasta `posts/<identificador>` e aparece em `/sites/<identificador>`. Ocultar um site remove sua página do acesso público e do catálogo, mas preserva seu perfil e arquivos.
 
-O módulo **Conteúdo de saúde** conserva as salvaguardas médicas do Descomplica Bula. Ao criar outro nicho, deixe esse módulo e o **Resumo de bula** desativados. Antes de lançar um site novo, revise as páginas institucionais e a política de privacidade para refletirem as práticas reais daquele projeto.
+Em desenvolvimento, alterações são gravadas nos arquivos locais. Em produção Vercel, salvar um perfil ou alterar a visibilidade grava `data/sites.json` no GitHub e inicia um novo deploy; configure `GITHUB_TOKEN` e `GITHUB_REPO` com permissão de escrita. Para geração editorial, filas, assinaturas e logs, os estados de cada nicho ficam separados em `.editorial-state/<identificador>/`.
+
+O módulo **Conteúdo de saúde** é opcional e conserva salvaguardas específicas. Ative-o somente em um projeto de saúde e configure fontes permitidas. Antes de lançar qualquer nicho, revise páginas institucionais, política de privacidade e informações de contato para refletirem as práticas reais do projeto.
 
 ## Automações em produção
 

@@ -8,8 +8,10 @@ import TrafficTabs from "../../components/admin/TrafficTabs";
 import { markdownToHtml, htmlToMarkdown } from "../../lib/markdown-html";
 import titleQuality from "../../lib/article-title.cjs";
 import siteConfig from "../../site.config";
+import siteProfileTools from "../../lib/site-profile";
 
 const { getEditorialTitleIssue } = titleQuality;
+const { createGenericSiteProfile } = siteProfileTools;
 
 /* ─── Design tokens ─── */
 const C = {
@@ -2815,8 +2817,581 @@ function OverviewTab({ pendingEditorialCount, goTo }) {
   );
 }
 
+function SitesHubTab({ toast }) {
+  const [sites, setSites] = useState([]);
+  const [revision, setRevision] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editingSlug, setEditingSlug] = useState(null);
+  const [draftSlug, setDraftSlug] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [active, setActive] = useState(false);
+  const [step, setStep] = useState(0);
+  const [error, setError] = useState("");
+  const [contentSite, setContentSite] = useState(null);
+  const [contentDrafts, setContentDrafts] = useState([]);
+  const [contentCategory, setContentCategory] = useState("");
+  const [contentTopic, setContentTopic] = useState("");
+  const [contentBusy, setContentBusy] = useState(false);
+  const [reviewChecks, setReviewChecks] = useState({});
+
+  const steps = [
+    { title: "Identidade", hint: "Nome, endereço e nicho" },
+    { title: "Público e marca", hint: "Posicionamento e apresentação" },
+    { title: "Plano editorial", hint: "Categorias e pautas" },
+    { title: "Regras e fontes", hint: "Qualidade e referências" },
+    { title: "Módulos e SEO", hint: "Recursos e monetização" },
+    { title: "Revisão", hint: "Conferir antes de salvar" },
+  ];
+
+  async function loadSites() {
+    const response = await fetch("/api/admin/sites", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Não foi possível carregar os sites.");
+    setSites(data.sites || []);
+    setRevision(data.revision || null);
+  }
+
+  useEffect(() => {
+    loadSites()
+      .catch((loadError) => setError(loadError.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function update(group, field, value) {
+    setProfile((current) => ({
+      ...current,
+      [group]: { ...current[group], [field]: value },
+    }));
+  }
+
+  function updateList(group, field, value) {
+    update(group, field, value.split("\n").map((item) => item.trim()).filter(Boolean));
+  }
+
+  function startCreate() {
+    const initialSlug = "novo-site";
+    const nextProfile = createGenericSiteProfile({ slug: initialSlug });
+    nextProfile.url = `${window.location.origin}/sites/${initialSlug}`;
+    setEditingSlug(null);
+    setDraftSlug(initialSlug);
+    setProfile(nextProfile);
+    setActive(false);
+    setStep(0);
+    setError("");
+  }
+
+  function startEdit(site) {
+    setEditingSlug(site.slug);
+    setDraftSlug(site.slug);
+    setProfile(JSON.parse(JSON.stringify(site.profile)));
+    setActive(site.active === true);
+    setStep(0);
+    setError("");
+  }
+
+  async function saveSite() {
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/sites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save",
+          slug: draftSlug,
+          profile,
+          active,
+          revision,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível salvar o perfil.");
+      setRevision(data.revision || null);
+      setEditingSlug(draftSlug);
+      await loadSites();
+      toast(data.commitUrl ? "Perfil salvo no repositório; o deploy foi iniciado." : "Perfil do site salvo.");
+      setProfile(null);
+    } catch (saveError) {
+      setError(saveError.message);
+      toast(saveError.message, "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleSite(site) {
+    setError("");
+    try {
+      const response = await fetch("/api/admin/sites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set-active",
+          slug: site.slug,
+          active: !site.active,
+          revision,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível alterar a visibilidade.");
+      setRevision(data.revision || null);
+      await loadSites();
+      toast(data.active ? "Site visível ao público." : "Site ocultado; perfil e conteúdo foram preservados.");
+    } catch (toggleError) {
+      setError(toggleError.message);
+      toast(toggleError.message, "error");
+    }
+  }
+
+  async function openContent(site) {
+    setContentBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/sites/${encodeURIComponent(site.slug)}/editorial`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível carregar a fila editorial.");
+      setContentSite(site);
+      setContentDrafts(data.drafts || []);
+      setContentCategory(site.profile.generation?.categories?.[0] || "");
+      setContentTopic("");
+      setReviewChecks({});
+    } catch (contentError) {
+      setError(contentError.message);
+      toast(contentError.message, "error");
+    } finally {
+      setContentBusy(false);
+    }
+  }
+
+  async function generateSiteDraft() {
+    if (!contentSite || !contentTopic.trim()) return;
+    setContentBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/sites/${encodeURIComponent(contentSite.slug)}/editorial`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate", category: contentCategory, topic: contentTopic }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível gerar o rascunho.");
+      setContentDrafts((current) => [data.draft, ...current]);
+      setContentTopic("");
+      toast("Rascunho criado e enviado para revisão humana.");
+    } catch (contentError) {
+      setError(contentError.message);
+      toast(contentError.message, "error");
+    } finally {
+      setContentBusy(false);
+    }
+  }
+
+  async function reviewSiteDraft(draft, action) {
+    const checks = reviewChecks[draft.id] || {};
+    const reason = action === "reject" ? window.prompt("Informe o motivo da rejeição deste rascunho.") : "";
+    if (action === "reject" && !reason?.trim()) return;
+    if (action === "approve" && (!checks.facts || !checks.sources)) {
+      setError("Confirme a revisão dos fatos e das fontes antes de publicar.");
+      return;
+    }
+    setContentBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/sites/${encodeURIComponent(contentSite.slug)}/editorial`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          draftId: draft.id,
+          reason,
+          verifiedFacts: checks.facts === true,
+          verifiedSources: checks.sources === true,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível concluir a revisão.");
+      setContentDrafts((current) => current.filter((item) => item.id !== draft.id));
+      toast(action === "approve" ? "Artigo publicado no site." : "Rascunho rejeitado.");
+    } catch (reviewError) {
+      setError(reviewError.message);
+      toast(reviewError.message, "error");
+    } finally {
+      setContentBusy(false);
+    }
+  }
+
+  const textField = (label, value, onChange, options = {}) => (
+    <label key={label} style={{ ...s.fieldGroup, ...(options.fullWidth ? { gridColumn: "1 / -1" } : {}) }}>
+      <span style={s.label}>{label}</span>
+      {options.textarea ? (
+        <textarea
+          rows={options.rows || 4}
+          style={{ ...s.input, resize: "vertical" }}
+          placeholder={options.placeholder}
+          value={value || ""}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      ) : (
+        <input
+          type={options.type || "text"}
+          style={s.input}
+          placeholder={options.placeholder}
+          readOnly={options.readOnly === true}
+          value={value ?? ""}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </label>
+  );
+  const lines = (values) => (values || []).join("\n");
+
+  if (loading) return <p style={{ color: C.textMuted }}>Carregando os projetos do hub…</p>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {!profile ? (
+        <>
+          <div style={s.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+              <div>
+                <div style={s.sectionTitle}>Hub central de sites</div>
+                <p style={{ color: C.textMuted, fontSize: 13, lineHeight: 1.65, maxWidth: 720 }}>
+                  Cada nicho tem perfil e pasta de conteúdo próprios. Os sites públicos usam o endereço
+                  <code style={{ marginLeft: 5 }}>/sites/identificador</code>. Ocultar um site não apaga seu conteúdo nem suas configurações.
+                </p>
+              </div>
+              <button type="button" style={s.btn} onClick={startCreate}>＋ Criar novo site</button>
+            </div>
+            <p style={{ marginTop: 12, fontSize: 12, color: C.textFaint }}>
+              Para planejar um novo nicho, consulte também a <a href="/guias" target="_blank" rel="noreferrer">biblioteca de guias</a>.
+            </p>
+          </div>
+
+          {error && <p role="alert" style={{ color: C.red }}>{error}</p>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: 14 }}>
+            {sites.map((site) => (
+              <article key={site.slug} style={{ ...s.card, margin: 0, borderTop: `3px solid ${site.active ? C.green : C.border}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                  <div>
+                    <span style={{ color: site.active ? C.green : C.textFaint, fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                      {site.active ? "Visível ao público" : "Oculto"}
+                    </span>
+                    <h2 style={{ margin: "8px 0 4px", fontSize: 19, color: C.text }}>{site.profile.name}</h2>
+                    <p style={{ margin: 0, color: C.textMuted, fontSize: 12 }}>{site.profile.niche}</p>
+                  </div>
+                  <span style={{ color: C.textFaint, fontSize: 11 }}>/{site.slug}</span>
+                </div>
+                <p style={{ color: C.textMuted, fontSize: 13, lineHeight: 1.55, minHeight: 40 }}>
+                  {site.profile.description}
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <button type="button" style={s.btnGhost} onClick={() => startEdit(site)}>Configurar</button>
+                  <button type="button" style={s.btnGhost} onClick={() => openContent(site)}>Conteúdo e revisão</button>
+                  <button type="button" style={s.btnGhost} onClick={() => toggleSite(site)}>
+                    {site.active ? "Ocultar site" : "Ativar site"}
+                  </button>
+                  {site.active && (
+                    <a href={`/sites/${site.slug}`} target="_blank" rel="noreferrer" style={{ ...s.btnGhost, textDecoration: "none" }}>
+                      Abrir ↗
+                    </a>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          {sites.length === 0 && (
+            <div style={s.card}><p style={{ color: C.textMuted }}>Ainda não há projetos. Crie o primeiro site para começar.</p></div>
+          )}
+          {contentSite && (
+            <section style={s.card}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={s.sectionTitle}>Conteúdo de {contentSite.profile.name}</div>
+                  <p style={{ color: C.textMuted, fontSize: 13, lineHeight: 1.6 }}>
+                    Gere rascunhos com as regras deste nicho. Cada artigo precisa ser revisado antes de ficar público.
+                  </p>
+                </div>
+                <button type="button" style={s.btnGhost} onClick={() => setContentSite(null)}>Fechar</button>
+              </div>
+              <div className="config-grid" style={{ marginTop: 16 }}>
+                <label style={s.fieldGroup}>
+                  <span style={s.label}>Categoria</span>
+                  <select style={s.input} value={contentCategory} onChange={(event) => setContentCategory(event.target.value)}>
+                    {(contentSite.profile.generation?.categories || []).map((category) => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                </label>
+                <label style={{ ...s.fieldGroup, gridColumn: "1 / -1" }}>
+                  <span style={s.label}>Pauta do artigo</span>
+                  <textarea
+                    style={{ ...s.input, resize: "vertical" }}
+                    rows={3}
+                    value={contentTopic}
+                    onChange={(event) => setContentTopic(event.target.value)}
+                    placeholder="Descreva uma pauta específica e útil para o público deste site."
+                  />
+                </label>
+              </div>
+              {(contentSite.profile.generation?.topicSeeds || [])
+                .filter((entry) => entry.category === contentCategory)
+                .flatMap((entry) => entry.topics || []).length > 0 && (
+                <div style={{ margin: "8px 0 14px" }}>
+                  <span style={{ ...s.label, display: "block" }}>Pautas cadastradas — clique para usar</span>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {(contentSite.profile.generation.topicSeeds.find((entry) => entry.category === contentCategory)?.topics || [])
+                      .map((topic) => (
+                        <button key={topic} type="button" style={s.btnGhost} onClick={() => setContentTopic(topic)}>{topic}</button>
+                      ))}
+                  </div>
+                </div>
+              )}
+              <button type="button" style={s.btn} disabled={contentBusy || !contentTopic.trim()} onClick={generateSiteDraft}>
+                {contentBusy ? "Processando…" : "Gerar rascunho para revisão"}
+              </button>
+              <div style={{ marginTop: 22, display: "grid", gap: 12 }}>
+                {contentDrafts.map((draft) => {
+                  const checks = reviewChecks[draft.id] || {};
+                  return (
+                    <article key={draft.id} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
+                      <strong style={{ display: "block", color: C.text }}>{draft.title}</strong>
+                      <span style={{ color: C.textFaint, fontSize: 12 }}>{draft.category} · {draft.file}</span>
+                      <details style={{ marginTop: 10 }}>
+                        <summary style={{ cursor: "pointer", color: C.primary, fontWeight: 700 }}>Ler rascunho completo</summary>
+                        <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 420, overflow: "auto", padding: 12, background: C.bgElevated, borderRadius: 8, fontSize: 12, lineHeight: 1.6 }}>
+                          {draft.content}
+                        </pre>
+                      </details>
+                      {draft.validationIssues?.length > 0 && (
+                        <p role="alert" style={{ color: C.red, fontSize: 12 }}>
+                          Problemas automáticos: {draft.validationIssues.join("; ")}
+                        </p>
+                      )}
+                      <div style={{ display: "grid", gap: 7, margin: "12px 0", color: C.textMuted, fontSize: 12 }}>
+                        <label><input type="checkbox" checked={checks.facts === true} onChange={(event) => setReviewChecks((current) => ({ ...current, [draft.id]: { ...checks, facts: event.target.checked } }))} /> Revisei os fatos e a precisão do texto.</label>
+                        <label><input type="checkbox" checked={checks.sources === true} onChange={(event) => setReviewChecks((current) => ({ ...current, [draft.id]: { ...checks, sources: event.target.checked } }))} /> Revisei as fontes e os links usados.</label>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button type="button" style={s.btn} disabled={contentBusy || Boolean(draft.validationIssues?.length)} onClick={() => reviewSiteDraft(draft, "approve")}>
+                          Aprovar e publicar
+                        </button>
+                        <button type="button" style={s.btnGhost} disabled={contentBusy} onClick={() => reviewSiteDraft(draft, "reject")}>
+                          Rejeitar rascunho
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+                {contentDrafts.length === 0 && <p style={{ color: C.textFaint, fontSize: 13 }}>Nenhum rascunho aguardando revisão para este site.</p>}
+              </div>
+            </section>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={s.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <div>
+                <div style={s.sectionTitle}>{editingSlug ? `Configurando ${profile.name}` : "Assistente de criação de site"}</div>
+                <p style={{ color: C.textMuted, fontSize: 13, lineHeight: 1.6 }}>
+                  Avance por cada etapa. O perfil é isolado por nicho e pode ser salvo antes de ativar a página pública.
+                </p>
+              </div>
+              <button type="button" style={s.btnGhost} onClick={() => { setProfile(null); setError(""); }}>
+                Voltar aos sites
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(125px, 1fr))", gap: 8, marginTop: 18 }}>
+              {steps.map((item, index) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  onClick={() => setStep(index)}
+                  aria-current={step === index ? "step" : undefined}
+                  style={{
+                    border: `1px solid ${step === index ? C.primary : C.border}`,
+                    borderRadius: 10,
+                    background: step === index ? C.primaryGlow : C.surface,
+                    color: C.text,
+                    padding: "10px 12px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <strong style={{ display: "block", fontSize: 12 }}>{index + 1}. {item.title}</strong>
+                  <span style={{ color: C.textFaint, fontSize: 11 }}>{item.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {step === 0 && (
+            <div style={s.card}>
+              <div style={s.sectionTitle}>1. Identidade e endereço</div>
+              <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>
+                O identificador forma o caminho público. Use letras minúsculas, números e hífens.
+              </p>
+              <div className="config-grid">
+                {textField("Nome do site", profile.name, (value) => setProfile({ ...profile, name: value }))}
+                {textField("Identificador / URL", draftSlug, (value) => {
+                  setDraftSlug(value);
+                  setProfile({
+                    ...profile,
+                    contentDirectory: `posts/${value}`,
+                    url: `${window.location.origin}/sites/${value}`,
+                  });
+                }, { placeholder: "ex.: jardinagem-pratica", readOnly: Boolean(editingSlug) })}
+                {textField("Nicho", profile.niche, (value) => setProfile({ ...profile, niche: value }), { placeholder: "Ex.: jardinagem para iniciantes" })}
+                {textField("Tagline", profile.tagline, (value) => setProfile({ ...profile, tagline: value }))}
+                {textField("Descrição do projeto", profile.description, (value) => setProfile({ ...profile, description: value }), { textarea: true, fullWidth: true })}
+              </div>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div style={s.card}>
+              <div style={s.sectionTitle}>2. Público, posicionamento e marca</div>
+              <div className="config-grid">
+                {textField("Público-alvo", profile.editorial?.audience, (value) => {
+                  update("editorial", "audience", value);
+                  update("generation", "audienceLevel", value);
+                }, { textarea: true, fullWidth: true })}
+                {textField("Tom de voz", profile.editorial?.tone, (value) => {
+                  update("editorial", "tone", value);
+                  update("generation", "tone", value);
+                }, { textarea: true, fullWidth: true })}
+                {textField("Título da página inicial", profile.homepage?.heroTitle, (value) => update("homepage", "heroTitle", value), { fullWidth: true })}
+                {textField("Apresentação da página inicial", profile.homepage?.heroDescription, (value) => update("homepage", "heroDescription", value), { textarea: true, fullWidth: true })}
+                {textField("Cor principal", profile.brand?.primaryColor, (value) => update("brand", "primaryColor", value), { type: "color" })}
+                {textField("Cor de destaque", profile.brand?.accentColor, (value) => update("brand", "accentColor", value), { type: "color" })}
+                {textField("Nome do autor ou redação", profile.author?.name, (value) => update("author", "name", value))}
+                {textField("Apresentação editorial", profile.author?.bio, (value) => update("author", "bio", value), { textarea: true, fullWidth: true })}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div style={s.card}>
+              <div style={s.sectionTitle}>3. Estrutura editorial e pautas</div>
+              <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>
+                Crie categorias específicas. As pautas ficam associadas à primeira categoria e podem ser ampliadas no assistente.
+              </p>
+              <div className="config-grid">
+                {textField("Categorias (uma por linha)", lines(profile.generation?.categories), (value) => {
+                  const categories = value.split("\n").map((item) => item.trim()).filter(Boolean);
+                  setProfile({ ...profile, generation: { ...profile.generation, categories } });
+                }, { textarea: true, rows: 6, fullWidth: true })}
+                {textField(`Pautas para ${profile.generation?.categories?.[0] || "a primeira categoria"} (uma por linha)`,
+                  lines(profile.generation?.topicSeeds?.find((item) => item.category === profile.generation?.categories?.[0])?.topics),
+                  (value) => {
+                    const category = profile.generation?.categories?.[0] || "";
+                    const topicSeeds = (profile.generation?.topicSeeds || []).filter((item) => item.category !== category);
+                    topicSeeds.push({ category, topics: value.split("\n").map((item) => item.trim()).filter(Boolean) });
+                    setProfile({ ...profile, generation: { ...profile.generation, topicSeeds } });
+                  }, { textarea: true, rows: 7, fullWidth: true, placeholder: "Como começar...\nO que considerar antes de..." })}
+                {textField("Tamanho mínimo dos artigos (palavras)", profile.generation?.minWords, (value) => {
+                  setProfile({ ...profile, generation: { ...profile.generation, minWords: Number(value) || 100 } });
+                }, { type: "number" })}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div style={s.card}>
+              <div style={s.sectionTitle}>4. Regras de qualidade e fontes</div>
+              <div className="config-grid">
+                {textField("Regras editoriais (uma por linha)", lines(profile.editorial?.contentRules), (value) => updateList("editorial", "contentRules", value), { textarea: true, fullWidth: true })}
+                {textField("Domínios permitidos para fontes (um por linha)", lines(profile.officialSourceDomains), (value) => {
+                  setProfile({ ...profile, officialSourceDomains: value.split("\n").map((item) => item.trim()).filter(Boolean) });
+                }, { textarea: true, fullWidth: true, placeholder: "gov.br\nuniversidade.br" })}
+                <label style={{ ...s.fieldGroup, display: "flex", alignItems: "center", gap: 10 }}>
+                  <input type="checkbox" checked={profile.editorial?.requireSources === true} onChange={(event) => update("editorial", "requireSources", event.target.checked)} />
+                  Exigir fontes para os artigos deste nicho
+                </label>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div style={s.card}>
+              <div style={s.sectionTitle}>5. Módulos, SEO e monetização</div>
+              <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>
+                Ative somente recursos que façam sentido para o nicho. Saúde e resumo de bula começam desativados.
+              </p>
+              <div style={{ display: "grid", gap: 12 }}>
+                {[
+                  ["health", "Conteúdo de saúde"],
+                  ["officialSources", "Página de fontes recomendadas"],
+                  ["newsletter", "Newsletter"],
+                  ["affiliates", "Afiliados"],
+                ].map(([key, label]) => (
+                  <label key={key} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="checkbox" checked={profile.modules?.[key] === true} onChange={(event) => update("modules", key, event.target.checked)} />
+                    {label}
+                  </label>
+                ))}
+                {profile.modules?.health && (
+                  <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input type="checkbox" checked={profile.modules?.medicationSummary === true} onChange={(event) => update("modules", "medicationSummary", event.target.checked)} />
+                    Resumo de bula (requer conteúdo de saúde)
+                  </label>
+                )}
+              </div>
+              <div className="config-grid" style={{ marginTop: 20 }}>
+                {textField("Palavras-chave de busca (uma por linha)", lines(profile.keywords), (value) => setProfile({ ...profile, keywords: value.split("\n").map((item) => item.trim()).filter(Boolean) }), { textarea: true, fullWidth: true })}
+                {textField("Resumo da metodologia editorial", profile.methodology?.summary, (value) => update("methodology", "summary", value), { textarea: true, fullWidth: true })}
+                <label style={{ ...s.fieldGroup, display: "flex", alignItems: "center", gap: 10 }}>
+                  <input type="checkbox" checked={profile.adsense?.enabled === true} onChange={(event) => update("adsense", "enabled", event.target.checked)} />
+                  Preparar espaços de Google AdSense
+                </label>
+                {profile.adsense?.enabled && textField("Publisher ID do AdSense", profile.adsense.publisherId, (value) => update("adsense", "publisherId", value), { fullWidth: true })}
+              </div>
+            </div>
+          )}
+
+          {step === 5 && (
+            <div style={s.card}>
+              <div style={s.sectionTitle}>6. Revisão antes de salvar</div>
+              <div style={{ display: "grid", gap: 10, color: C.textMuted, fontSize: 13, lineHeight: 1.6 }}>
+                <p><strong>Site:</strong> {profile.name} — {profile.niche}</p>
+                <p><strong>Endereço:</strong> /sites/{draftSlug}</p>
+                <p><strong>Conteúdo isolado em:</strong> {profile.contentDirectory}</p>
+                <p><strong>Categorias:</strong> {(profile.generation?.categories || []).join(", ") || "Nenhuma cadastrada"}</p>
+                <p><strong>Módulo de saúde:</strong> {profile.modules?.health ? "Ativado" : "Desativado"}</p>
+                <p><strong>Fontes obrigatórias:</strong> {profile.editorial?.requireSources ? "Sim" : "Não"}</p>
+              </div>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 18, padding: 14, borderRadius: 10, background: C.bgElevated }}>
+                <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
+                <span>
+                  <strong style={{ display: "block", color: C.text }}>Deixar visível ao público após salvar</strong>
+                  <span style={{ color: C.textMuted, fontSize: 12 }}>Se desmarcado, o projeto fica no hub como oculto. Você poderá ativá-lo depois.</span>
+                </span>
+              </label>
+            </div>
+          )}
+
+          {error && <p role="alert" style={{ color: C.red }}>{error}</p>}
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" style={s.btnGhost} onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>
+              Voltar etapa
+            </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              {step < steps.length - 1 && (
+                <button type="button" style={s.btnGhost} onClick={() => setStep(step + 1)}>Próxima etapa</button>
+              )}
+              <button type="button" style={s.btn} onClick={saveSite} disabled={saving}>
+                {saving ? "Salvando…" : active ? "Salvar e deixar visível" : "Salvar como oculto"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ─── TABS config ─── */
 const TABS = [
+  { id: "sites", label: "Sites do hub", shortLabel: "Sites", hint: "Crie, configure e controle a visibilidade dos seus projetos." },
   { id: "overview", label: "Visão geral", shortLabel: "Início", hint: "O que precisa da sua atenção hoje." },
   { id: "traffic", label: "Tráfego", shortLabel: "Tráfego", hint: "Visitas ao site: visão geral anônima e, para quem aceitou os cookies, cada visita em detalhe." },
   { id: "editorial", label: "Aprovações editoriais", shortLabel: "Revisar", hint: "Rascunhos aguardando revisão antes de publicar." },
@@ -2830,7 +3405,7 @@ const TABS = [
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("sites");
   const [pendingEditorialCount, setPendingEditorialCount] = useState(null);
   const [toastState, setToastState] = useState({ msg: "", type: "ok" });
 
@@ -2920,7 +3495,7 @@ export default function AdminPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="header-title" style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.02em" }}>
             <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: "50%", background: C.primary }} />
-            Descomplica Bula <span style={{ color: C.textFaint, fontWeight: 600 }}>redação</span>
+            Construtor de Sites <span style={{ color: C.textFaint, fontWeight: 600 }}>hub</span>
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2957,6 +3532,7 @@ export default function AdminPage() {
           </h1>
           <p style={{ margin: "0 0 24px", color: C.textMuted, fontSize: 14 }}>{activeTab?.hint}</p>
           {tab === "overview" && <OverviewTab pendingEditorialCount={pendingEditorialCount} goTo={setTab} />}
+          {tab === "sites" && <SitesHubTab toast={showToast} />}
           {tab === "traffic" && <TrafficTabs />}
           {tab === "editorial" && (
             <EditorialReviewPanel
